@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "game-window",
+  "description": "Permissions for pop-out mini-game windows",
+  "windows": ["game-*"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-close",
+    "core:event:allow-emit",
+    "core:event:allow-listen",
+    "fs:allow-app-read-recursive",
+    "fs:allow-app-write-recursive",
+    "fs:allow-app-meta-recursive"
+  ]
+}

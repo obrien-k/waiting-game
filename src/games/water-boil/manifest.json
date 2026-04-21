@@ -1,0 +1,11 @@
+{
+  "id": "water-boil",
+  "name": "Waiting for Water to Boil",
+  "version": "1.0.0",
+  "description": "Physics-accurate kettle idle game",
+  "author": "Kyle OBrien",
+  "minEngineVersion": "1.0.0",
+  "entry": "index.ts",
+  "windowSize": { "width": 420, "height": 660 },
+  "tags": ["physics", "kitchen"]
+}
