@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
+import type { MouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { MiniGamePlugin, PluginComponentProps } from "@/engine/types";
 import { useHubStore } from "@/store/hubStore";
 import { saveGame, loadGame } from "@/engine/saveLoad";
-import { broadcastTick, emitGoldEarned } from "@/engine/eventBus";
+import { broadcastTick, emitGoldEarned, emitCrystalEarned, emitWindowClosed } from "@/engine/eventBus";
+import { PLUGIN_LIMITS } from "@/engine/pluginValidation";
 import { GameTicker } from "@/engine/ticker";
 import { canPurchaseUpgrade, purchaseUpgrade } from "@/engine/upgradeSystem";
 
@@ -49,12 +51,15 @@ export function GameWindowShell({ plugin }: Props) {
     if (!loaded) return;
 
     const ticker = new GameTicker((deltaMs) => {
-      const { next, goldEarned } = plugin.tick(stateRef.current, deltaMs);
+      const { next, goldEarned, crystalsEarned } = plugin.tick(stateRef.current, deltaMs);
       stateRef.current = next;
       setState(next);
       broadcastTick(plugin.id, next);
       if (goldEarned > 0) {
-        emitGoldEarned(plugin.id, goldEarned);
+        emitGoldEarned(plugin.id, Math.min(goldEarned, PLUGIN_LIMITS.goldPerTickMax));
+      }
+      if (crystalsEarned > 0) {
+        emitCrystalEarned(plugin.id);
       }
     });
 
@@ -72,15 +77,22 @@ export function GameWindowShell({ plugin }: Props) {
     return () => clearInterval(interval);
   }, [loaded, plugin.id]);
 
-  // Save on window close
+  // Save on OS-level close (Cmd+W, force quit, etc.)
   useEffect(() => {
     const win = getCurrentWindow();
     const unlistenPromise = win.listen("tauri://close-requested", async () => {
       await saveGame(plugin.id, stateRef.current);
-      await win.close();
+      await emitWindowClosed(plugin.id);
+      await win.destroy();
     });
     return () => { unlistenPromise.then((u) => u()); };
   }, [plugin.id]);
+
+  async function handleTitleDragStart(e: MouseEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    await getCurrentWindow().startDragging();
+  }
 
   async function toggleAlwaysOnTop() {
     const next = !alwaysOnTop;
@@ -90,7 +102,8 @@ export function GameWindowShell({ plugin }: Props) {
 
   async function handleClose() {
     await saveGame(plugin.id, stateRef.current);
-    await getCurrentWindow().close();
+    await emitWindowClosed(plugin.id);
+    await getCurrentWindow().destroy();
   }
 
   function handleReset() {
@@ -149,12 +162,11 @@ export function GameWindowShell({ plugin }: Props) {
     <div className="flex flex-col h-full bg-[var(--color-surface)] text-white overflow-hidden">
       {/* Custom title bar */}
       <div
-        data-tauri-drag-region
         className="flex items-center justify-between px-3 py-2 bg-[var(--color-surface-raised)] border-b border-white/10 select-none"
       >
         <span
-          data-tauri-drag-region
-          className="text-sm font-medium text-white/80 truncate"
+          onMouseDown={handleTitleDragStart}
+          className="flex-1 text-sm font-medium text-white/80 truncate cursor-move"
         >
           {plugin.name}
         </span>

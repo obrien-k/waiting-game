@@ -1,13 +1,17 @@
 import { useHubStore } from "@/store/hubStore";
 import { GameCard } from "./GameCard";
 
-export function GameGrid() {
+interface Props {
+  onFocus: (gameId: string) => void;
+}
+
+export function GameGrid({ onFocus }: Props) {
   const installedGameIds = useHubStore((s) => s.installedGameIds);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {installedGameIds.map((id) => (
-        <GameCard key={id} gameId={id} />
+        <GameCard key={id} gameId={id} onFocus={onFocus} />
       ))}
 
       {/* Install placeholder */}

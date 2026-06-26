@@ -23,9 +23,25 @@ export interface PluginComponentProps {
   isPopOut: boolean;
 }
 
+/**
+ * A selectable mode within a game (the "what" axis of the two-axis upgrade system).
+ * Hard-mode variants award exactly 1 crystal on completion — never more.
+ */
+export interface GameVariant {
+  id: string;
+  label: string;
+  emoji?: string;
+  baseDurationSeconds: number;
+  goldPerCompletion: number;
+  /** If true: awards 1 crystal on completion, must meet hard-mode duration minimums. */
+  isHardMode: boolean;
+}
+
 export interface TickResult {
   next: unknown;
   goldEarned: number;
+  /** Always 0 or 1. Shells clamp this — engines must not return > 1. */
+  crystalsEarned: number;
 }
 
 export interface MiniGamePlugin {
@@ -41,9 +57,16 @@ export interface MiniGamePlugin {
   Component: React.ComponentType<PluginComponentProps>;
   CardThumbnail?: React.ComponentType<{ state: unknown }>;
   upgrades: UpgradeDef[];
+  /** Declares available modes. First entry is the default. */
+  variants?: GameVariant[];
 
   /** Optional: reset game state to a fresh start (preserves upgrades). */
   reset?: (state: unknown) => unknown;
+}
+
+export interface CrystalLedger {
+  /** Lifetime count. Crystals are never spent — they are a prestige record. */
+  count: number;
 }
 
 export interface PluginManifest {

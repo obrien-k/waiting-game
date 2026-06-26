@@ -44,9 +44,9 @@ export function hydrateState(raw: unknown): WaterBoilState {
 export function tick(
   state: WaterBoilState,
   deltaMs: number
-): { next: WaterBoilState; goldEarned: number } {
+): { next: WaterBoilState; goldEarned: number; crystalsEarned: number } {
   if (state.isBoiling) {
-    return { next: state, goldEarned: 0 };
+    return { next: state, goldEarned: 0, crystalsEarned: 0 };
   }
 
   const deltaSeconds = deltaMs / 1000;
@@ -65,12 +65,14 @@ export function tick(
         lastSaveAt: Date.now(),
       },
       goldEarned,
+      crystalsEarned: 0,
     };
   }
 
   return {
     next: { ...state, currentTemp: newTemp },
     goldEarned: 0,
+    crystalsEarned: 0,
   };
 }
 

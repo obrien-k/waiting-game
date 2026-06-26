@@ -1,5 +1,12 @@
 import type { WaterBoilState } from "./waterBoilEngine";
 
+function heatIcon(watts: number) {
+  if (watts >= 3000) return "⚡";
+  if (watts >= 1000) return "🔌";
+  if (watts >= 500) return "🔥";
+  return "🕯️";
+}
+
 export function CardThumbnail({ state: rawState }: { state: unknown }) {
   const state = rawState as WaterBoilState;
   const fraction = Math.min(1, Math.max(0, (state.currentTemp - 20) / 80));
@@ -8,9 +15,9 @@ export function CardThumbnail({ state: rawState }: { state: unknown }) {
 
   return (
     <div className="flex flex-col items-center gap-2 w-full">
-      {/* Mini thermometer */}
-      <div className="flex items-center gap-3">
-        <svg width="16" height="50" viewBox="0 0 16 50">
+      <div className="flex items-center gap-3 w-full">
+        {/* Mini thermometer */}
+        <svg width="16" height="50" viewBox="0 0 16 50" className="shrink-0">
           <rect x="6" y="2" width="4" height="32" rx="2" fill="rgba(255,255,255,0.1)" />
           <rect
             x="6"
@@ -24,12 +31,15 @@ export function CardThumbnail({ state: rawState }: { state: unknown }) {
           <circle cx="8" cy="42" r="6" fill={fillColor} style={{ transition: "fill 0.3s" }} />
         </svg>
 
-        <div className="text-left">
+        {/* Temp + combo */}
+        <div className="flex-1 text-left">
           <div className="text-white font-mono font-bold text-sm">
-            {state.currentTemp.toFixed(0)}°C
+            {state.isBoiling ? "Boiling! 🌡️" : `${state.currentTemp.toFixed(0)}°C`}
           </div>
-          <div className="text-white/40 text-xs">
-            {state.isBoiling ? "🌡️ Boiling!" : `${state.potVolumeLiters}L pot`}
+          <div className="flex items-center gap-1.5 text-white/40 text-xs mt-0.5">
+            <span>{heatIcon(state.heaterWatts)} {state.heaterWatts}W</span>
+            <span className="text-white/20">·</span>
+            <span>🫕 {state.potVolumeLiters}L</span>
           </div>
         </div>
       </div>

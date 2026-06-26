@@ -72,3 +72,29 @@ export async function onOfflineMessage(
   );
   return unlisten;
 }
+
+export async function emitCrystalEarned(gameId: string) {
+  await emit("crystal-earned", { gameId });
+}
+
+export async function onCrystalEarned(
+  cb: (gameId: string) => void
+): Promise<() => void> {
+  const unlisten = await listen<{ gameId: string }>("crystal-earned", (event) => {
+    cb(event.payload.gameId);
+  });
+  return unlisten;
+}
+
+export async function emitWindowClosed(gameId: string) {
+  await emit("window-closed", { gameId });
+}
+
+export async function onWindowClosed(
+  cb: (gameId: string) => void
+): Promise<() => void> {
+  const unlisten = await listen<{ gameId: string }>("window-closed", (event) => {
+    cb(event.payload.gameId);
+  });
+  return unlisten;
+}

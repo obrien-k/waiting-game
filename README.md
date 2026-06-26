@@ -58,6 +58,16 @@ npm run tauri dev
 
 This starts the Vite dev server and opens the app. Hot-module replacement is active — changes to React components appear instantly without restarting Tauri.
 
+### Testing gameplay without waiting
+
+In dev mode a **`[DEV] Fast Boil`** card appears in the hub. It uses a 50,000 W heater so the pot reaches 100 °C in roughly 3 seconds. Use it to exercise the full loop end-to-end:
+
+1. Click **⎋ Pop out** on the Dev Fast Boil card
+2. Watch the temperature bar rise, hear the gold ding, click **Refill & Restart**
+3. Verify the hub card's live preview updates and gold accumulates
+
+This game is gated behind `import.meta.env.DEV` and is completely excluded from production builds.
+
 ### Production build
 
 ```bash
@@ -72,7 +82,7 @@ The packaged app appears in `src-tauri/target/release/bundle/`.
 
 ## Creating a Mini-Game
 
-Every game — including the built-in ones — is a plugin that implements the `MiniGamePlugin` interface. Custom games ship as a folder containing a `manifest.json` and a JavaScript module.
+Every game is a plugin implementing the `MiniGamePlugin` interface. Adding one requires changes to two registry files plus the game folder itself — there is no runtime loader yet (planned for v0.2).
 
 ### 1. The plugin interface
 
@@ -155,23 +165,20 @@ interface MyGameState {
 }
 ```
 
-### 4. The manifest
+### 4. Register the game
 
-Create a `manifest.json` alongside your module:
-
-```json
-{
-  "id": "my-game",
-  "name": "My Idle Game",
-  "version": "1.0.0",
-  "description": "A short description",
-  "author": "Your Name",
-  "minEngineVersion": "1.0.0",
-  "entry": "index.js",
-  "windowSize": { "width": 420, "height": 660 },
-  "tags": ["chill", "numbers"]
-}
+**`src/store/gameRegistry.ts`** — add to the plugin list:
+```ts
+import myPlugin from "@/games/my-game";
+const BUILTIN_PLUGINS = [waterBoilPlugin, myPlugin];
 ```
+
+**`src/store/hubStore.ts`** — add the ID so a card appears in the hub:
+```ts
+installedGameIds: ["water-boil", "my-game"],
+```
+
+For dev-only games (testing, experiments) wrap both additions in `import.meta.env.DEV ? [...] : []` / a conditional — see `src/games/dev-instant/` for the pattern.
 
 ### 5. Minimal example
 
@@ -246,16 +253,6 @@ const MyGame: MiniGamePlugin = {
 export default MyGame;
 ```
 
-### 6. Installing a custom game (coming soon)
-
-User-installable games will be loaded from:
-
-```
-~/Library/Application Support/com.kyleobrien.waitinggame/plugins/{game-id}/
-```
-
-Click **+ Install Game** on the hub grid, select your game folder, and it will be registered automatically. This feature is planned for v0.2.
-
 ---
 
 ## Project structure
@@ -268,9 +265,14 @@ waiting-game/
 │   ├── hub/             # Main hub window: game grid, cards, header
 │   ├── game-window/     # Pop-out window shell: title bar, always-on-top toggle
 │   ├── games/
-│   │   └── water-boil/  # Built-in mini-idler (reference plugin implementation)
+│   │   ├── water-boil/  # "Waiting for Water to Boil" (reference implementation)
+│   │   └── dev-instant/ # [DEV] Fast Boil — dev-only test game (excluded from prod)
 │   └── components/      # Shared UI: TemperatureGauge, ProgressBar, UpgradePanel
-└── src-tauri/           # Rust/Tauri backend: window management, file system
+└── src-tauri/
+    ├── capabilities/
+    │   ├── main-window.json   # Tauri permissions for the hub window
+    │   └── game-window.json   # Tauri permissions for game pop-outs (label: "game-*")
+    └── src/             # Rust entry point (minimal — no custom commands yet)
 ```
 
 ---

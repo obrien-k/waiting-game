@@ -1,0 +1,9 @@
+{
+  "id": "my-game",
+  "name": "My Waiting Game",
+  "version": "1.0.0",
+  "description": "Something worth waiting for",
+  "author": "Your Name",
+  "minEngineVersion": "1.0.0",
+  "tags": []
+}
