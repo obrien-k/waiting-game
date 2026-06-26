@@ -17,3 +17,12 @@ src-tauri/gen
 *.njsproj
 *.sln
 *.sw?
+
+# Steam
+steam_api.dll
+steam_api64.dll
+steam_api.dylib
+steam_api64.dylib
+libsteam_api.so
+steam_appid.txt
+# Set STEAM_SDK_LOCATION=/path/to/steamworks_sdk before building with --features steam
