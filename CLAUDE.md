@@ -146,7 +146,7 @@ Crystals (`💎`) are a prestige currency earned only by completing hard-mode va
 ### Hard mode variants
 
 A `GameVariant` with `isHardMode: true`:
-- Requires `baseDurationSeconds ≥ 3,600` (1 hour) — validated at startup
+- Requires `baseDurationSeconds ≥ 172,800` (2 days) — validated at startup
 - Has `goldPerCompletion` near the 500 cap
 - Awards 1 crystal on completion
 - Renders with purple colour treatment and a 💎 badge in the UI

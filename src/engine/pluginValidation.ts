@@ -4,8 +4,8 @@ export const PLUGIN_LIMITS = {
   goldPerCompletion: { min: 0, max: 500 },
   /** Regular variants: 10 seconds → 72 hours */
   duration: { min: 10, max: 259_200 },
-  /** Hard-mode variants: 1 hour → 30 days */
-  hardModeDuration: { min: 3_600, max: 2_592_000 },
+  /** Hard-mode variants: 2 days → 30 days */
+  hardModeDuration: { min: 172_800, max: 2_592_000 },
   /** "How" upgrade speed ceiling across all games */
   conditionMultiplierMax: 500,
   /** Per-tick gold ceiling enforced by shells regardless of engine output */

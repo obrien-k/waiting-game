@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Hard-mode variant floor raised from 1 hour to **2 days** (`baseDurationSeconds ≥ 172,800`); 2–3 days is the intended range. No shipping variant was affected (none defined yet).
+
 ### Planned
 
 Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https://github.com/obrien-k/waiting-game/issues):

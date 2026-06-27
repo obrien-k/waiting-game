@@ -51,7 +51,7 @@ export const VARIANTS: GameVariant[] = [
 ```
 
 **Hard mode rules** (enforced by `assertPlugin` at startup):
-- `isHardMode: true` requires `baseDurationSeconds ≥ 3,600` (1 hour)
+- `isHardMode: true` requires `baseDurationSeconds ≥ 172,800` (2 days)
 - `goldPerCompletion` is capped at 500 across all variants
 - Awards exactly 1 crystal — never configurable, never more
 

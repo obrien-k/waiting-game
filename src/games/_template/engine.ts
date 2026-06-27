@@ -10,7 +10,7 @@ import type { UpgradeDef, GameVariant } from "@/engine/types";
 
 // ─── Variants ("what" axis) ──────────────────────────────────────────────────
 // Each variant is a selectable mode. The "what" upgrade tree switches between them.
-// Hard-mode variants must have baseDurationSeconds ≥ 3,600 (1 hour).
+// Hard-mode variants must have baseDurationSeconds ≥ 172,800 (2 days).
 // goldPerCompletion is capped at 500 by the validation layer.
 
 export const VARIANTS: GameVariant[] = [
@@ -27,7 +27,7 @@ export const VARIANTS: GameVariant[] = [
   //   id: "hard",
   //   label: "Hard Mode",
   //   emoji: "💀",
-  //   baseDurationSeconds: 14_400,  // 4 hours minimum
+  //   baseDurationSeconds: 172_800, // 2 days minimum (2–3 days is the sweet spot)
   //   goldPerCompletion: 500,       // max allowed
   //   isHardMode: true,             // awards 1 💎 crystal on completion
   // },
