@@ -18,6 +18,16 @@ Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https:
 - Asset-location convention (`src/assets/` vs `src-tauri/resources/`).
 - Remaining idea-backlog game: Wait in Line for an Amusement Park (#9).
 
+## [0.2.3] - 2026-06-27
+
+### Changed
+
+- **Water-boil visual overhaul ("chrome-job")** — replaced the flat emoji pot + plain thermometer with a layered SVG chrome kettle: metallic body with specular highlight and rim light, a glass water tank that fills and shifts hue cold→hot, bubbles that rise faster as it nears boil, a wattage-driven burner bloom, and volumetric blurred steam. Pure SVG + CSS, no image assets. Hub card thumbnail gets a matching mini chrome kettle.
+
+### Removed
+
+- `TemperatureGauge` component — superseded by the kettle's glass tank; it had no other callers.
+
 ## [0.2.2] - 2026-06-27
 
 ### Added
@@ -64,7 +74,8 @@ Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https:
 
 - Initial implementation: Tauri v2 hub window with pop-out floating game windows, the `water-boil` reference mini-game, the `MiniGamePlugin` system, 250 ms `setInterval` ticker, cross-window broadcast/event channels, and the AppData save/load system with offline-progress calculation.
 
-[Unreleased]: https://github.com/obrien-k/waiting-game/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/obrien-k/waiting-game/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/obrien-k/waiting-game/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/obrien-k/waiting-game/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/obrien-k/waiting-game/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/obrien-k/waiting-game/releases/tag/v0.2.0

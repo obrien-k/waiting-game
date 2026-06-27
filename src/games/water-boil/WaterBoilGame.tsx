@@ -1,6 +1,6 @@
-import { TemperatureGauge } from "@/components/TemperatureGauge";
 import { ProgressBar } from "@/components/ProgressBar";
 import { UpgradePanel } from "@/components/UpgradePanel";
+import { KettleVisual } from "./KettleVisual";
 import { formatGold } from "@/engine/currency";
 import type { PluginComponentProps } from "@/engine/types";
 import {
@@ -17,73 +17,38 @@ function formatTime(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+function heatIcon(watts: number): string {
+  if (watts >= 3000) return "⚡";
+  if (watts >= 1000) return "🔌";
+  if (watts >= 500) return "🔥";
+  return "🕯️";
+}
+
 export function WaterBoilGame({ state: rawState, onUpgradePurchase, onReset }: PluginComponentProps) {
   const state = rawState as WaterBoilState;
   const fraction = (state.currentTemp - 20) / 80;
-  const steamOpacity = Math.max(0, (state.currentTemp - 60) / 40);
   const timeLeft = getTimeRemainingSeconds(state);
   const ownedInstances = getOwnedUpgradeInstances(state.ownedUpgradeIds);
 
-  function handleReset() {
-    // Signal the shell to reset state
-    if (onReset) {
-      onReset();
-    }
-  }
-
   return (
     <div className="flex flex-col h-full overflow-hidden text-white">
-      {/* Top section — visual */}
-      <div className="flex flex-col items-center justify-center pt-6 pb-4 px-4 gap-4">
-        {/* Steam */}
-        <div
-          className="flex gap-3 h-10 items-end"
-          style={{ opacity: steamOpacity, transition: "opacity 0.5s ease" }}
-        >
-          <div
-            className="w-2 h-8 rounded-full bg-[var(--color-steam)] steam-tendril"
-            style={{ opacity: 0.7 }}
-          />
-          <div
-            className="w-3 h-10 rounded-full bg-[var(--color-steam)] steam-tendril"
-          />
-          <div
-            className="w-2 h-6 rounded-full bg-[var(--color-steam)] steam-tendril"
-            style={{ opacity: 0.7 }}
-          />
+      {/* Top section — chrome kettle */}
+      <div className="flex flex-col items-center justify-center pt-3 pb-3 px-4 gap-3">
+        <KettleVisual fraction={fraction} watts={state.heaterWatts} isBoiling={state.isBoiling} />
+
+        {/* Heat source + pot chips */}
+        <div className="flex items-center gap-2 text-xs font-mono">
+          <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">
+            {heatIcon(state.heaterWatts)} {state.heaterWatts}W
+          </span>
+          <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60">
+            🫕 {state.potVolumeLiters}L
+          </span>
         </div>
 
-        {/* Pot + gauge row */}
-        <div className="flex items-end gap-6">
-          <TemperatureGauge tempC={state.currentTemp} height={140} />
-
-          {/* Pot illustration */}
-          <div className="flex flex-col items-center">
-            <div className="text-6xl">🫕</div>
-            <div className="text-xs text-white/40 mt-1">{state.potVolumeLiters}L pot</div>
-          </div>
-
-          {/* Heat source indicator */}
-          <div className="flex flex-col items-center gap-1">
-            <div className="text-2xl">
-              {state.heaterWatts >= 3000
-                ? "⚡"
-                : state.heaterWatts >= 1000
-                  ? "🔌"
-                  : state.heaterWatts >= 500
-                    ? "🔥"
-                    : "🕯️"}
-            </div>
-            <div className="text-xs text-white/40">{state.heaterWatts}W</div>
-          </div>
-        </div>
-
-        {/* Temperature display */}
         {state.isBoiling ? (
           <div className="text-center">
-            <div className="text-2xl font-bold text-red-400 animate-pulse">
-              Boiling!
-            </div>
+            <div className="text-2xl font-bold text-red-400 animate-pulse">Boiling!</div>
             <div className="text-sm text-white/50 mt-1">
               +{formatGold(state.potVolumeLiters * 10)} gold earned
             </div>
@@ -108,7 +73,7 @@ export function WaterBoilGame({ state: rawState, onUpgradePurchase, onReset }: P
       {state.isBoiling && (
         <div className="px-4 pb-3">
           <button
-            onClick={handleReset}
+            onClick={onReset}
             className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors text-sm"
           >
             Refill &amp; Restart

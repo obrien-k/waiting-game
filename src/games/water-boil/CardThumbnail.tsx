@@ -13,22 +13,36 @@ export function CardThumbnail({ state: rawState }: { state: unknown }) {
   const hue = Math.round(200 - fraction * 200);
   const fillColor = `hsl(${hue}, 80%, 55%)`;
 
+  // Mini chrome kettle: water fills the glass window from the bottom.
+  const winH = 16;
+  const fillH = winH * fraction;
+
   return (
     <div className="flex flex-col items-center gap-2 w-full">
       <div className="flex items-center gap-3 w-full">
-        {/* Mini thermometer */}
-        <svg width="16" height="50" viewBox="0 0 16 50" className="shrink-0">
-          <rect x="6" y="2" width="4" height="32" rx="2" fill="rgba(255,255,255,0.1)" />
-          <rect
-            x="6"
-            y={2 + 32 - Math.round(32 * fraction)}
-            width="4"
-            height={Math.round(32 * fraction)}
-            rx="2"
-            fill={fillColor}
-            style={{ transition: "all 0.3s" }}
-          />
-          <circle cx="8" cy="42" r="6" fill={fillColor} style={{ transition: "fill 0.3s" }} />
+        {/* Mini chrome kettle */}
+        <svg width="26" height="34" viewBox="0 0 26 34" className="shrink-0">
+          <defs>
+            <linearGradient id="miniChrome" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#f1f5f9" />
+              <stop offset="0.5" stopColor="#9aa6b4" />
+              <stop offset="1" stopColor="#7c8694" />
+            </linearGradient>
+            <clipPath id="miniGlass">
+              <rect x="8" y="13" width="10" height={winH} rx="2" />
+            </clipPath>
+          </defs>
+          {/* handle */}
+          <path d="M7 11 C7 4 19 4 19 11" fill="none" stroke="url(#miniChrome)" strokeWidth="2" strokeLinecap="round" />
+          {/* body */}
+          <rect x="4" y="11" width="18" height="20" rx="4" fill="url(#miniChrome)" />
+          {/* lid knob */}
+          <ellipse cx="13" cy="11" rx="8" ry="2.5" fill="#cbd5e1" />
+          {/* glass window + water */}
+          <rect x="8" y="13" width="10" height={winH} rx="2" fill="#0b1220" />
+          <g clipPath="url(#miniGlass)">
+            <rect x="8" y={13 + winH - fillH} width="10" height={fillH} fill={fillColor} style={{ transition: "all 0.3s" }} />
+          </g>
         </svg>
 
         {/* Temp + combo */}
