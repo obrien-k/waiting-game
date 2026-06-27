@@ -1,0 +1,9 @@
+{
+  "id": "paint-dry",
+  "name": "Watching Paint Dry",
+  "version": "1.0.0",
+  "description": "Four finishes, four kinds of patience",
+  "author": "The Waiting Game",
+  "minEngineVersion": "1.0.0",
+  "tags": ["idle", "classic"]
+}

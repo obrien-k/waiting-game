@@ -7,6 +7,12 @@ import type { GoldLedger, CrystalLedger } from "@/engine/types";
 // BroadcastChannel syncs gold across all windows (hub + game pop-outs)
 const goldChannel = new BroadcastChannel("waiting-game-gold");
 
+// Built-in games available out of the box. Dev-only games are appended in dev.
+// Hydration unions this with saved installs so newly-shipped games always show.
+const DEFAULT_INSTALLED_GAME_IDS = import.meta.env.DEV
+  ? ["water-boil", "paint-dry", "dev-instant", "dev-paint"]
+  : ["water-boil", "paint-dry"];
+
 interface GoldSyncMessage {
   type: "gold-sync";
   gold: GoldLedger;
@@ -51,9 +57,7 @@ export const useHubStore = create<HubState>((set, get) => {
   return {
     gold: createLedger(),
     crystals: { count: 0 },
-    installedGameIds: import.meta.env.DEV
-      ? ["water-boil", "dev-instant"]
-      : ["water-boil"],
+    installedGameIds: DEFAULT_INSTALLED_GAME_IDS,
     openWindowIds: new Set(),
     offlineMessage: null,
     hydrated: false,
@@ -101,10 +105,14 @@ export const useHubStore = create<HubState>((set, get) => {
           installedGameIds: string[];
         }>();
         if (saved) {
+          // Union so games shipped after this save was written still appear.
+          const installedGameIds = Array.from(
+            new Set([...(saved.installedGameIds ?? []), ...DEFAULT_INSTALLED_GAME_IDS])
+          );
           set({
             gold: saved.gold ?? createLedger(),
             crystals: saved.crystals ?? { count: 0 },
-            installedGameIds: saved.installedGameIds ?? ["water-boil"],
+            installedGameIds,
             hydrated: true,
           });
         } else {

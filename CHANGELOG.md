@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Hard-mode variant floor raised from 1 hour to **2 days** (`baseDurationSeconds ≥ 172,800`); 2–3 days is the intended range. No shipping variant was affected (none defined yet).
-
 ### Planned
 
 Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https://github.com/obrien-k/waiting-game/issues):
@@ -20,6 +16,19 @@ Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https:
 - `steam` Cargo feature, optional `steamworks` dependency, and `src-tauri/src/steam/` skeleton.
 - `tauri-plugin-single-instance` for Steam relaunch / overlay.
 - Asset-location convention (`src/assets/` vs `src-tauri/resources/`).
+- Remaining idea-backlog games: Watch a Plant Grow (#7), Wait in Line for an Amusement Park (#9).
+
+## [0.2.1] - 2026-06-27
+
+### Added
+
+- **Watching Paint Dry** mini-game (#8) — second built-in, built on the two-axis model. "What" axis: emulsion / matte / gloss paint types; "how" axis: still air / box fan / dehumidifier / heat lamp drying conditions. Hard-mode Marine Enamel (2-day cure → 💎), gated behind the heat lamp.
+- `[DEV] Fast Paint` dev-only plugin — cranks the drying multiplier so coats finish in ~1s, for watching hub previews and gold sync tick live.
+- Hub now unions saved installs with current built-ins on hydration, so games shipped after a save was written still appear.
+
+### Changed
+
+- Hard-mode variant floor raised from 1 hour to **2 days** (`baseDurationSeconds ≥ 172,800`); 2–3 days is the intended range. No shipping variant was affected.
 
 ## [0.2.0] - 2026-06-27
 
@@ -48,5 +57,6 @@ Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https:
 
 - Initial implementation: Tauri v2 hub window with pop-out floating game windows, the `water-boil` reference mini-game, the `MiniGamePlugin` system, 250 ms `setInterval` ticker, cross-window broadcast/event channels, and the AppData save/load system with offline-progress calculation.
 
-[Unreleased]: https://github.com/obrien-k/waiting-game/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/obrien-k/waiting-game/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/obrien-k/waiting-game/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/obrien-k/waiting-game/releases/tag/v0.2.0

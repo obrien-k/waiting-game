@@ -1,11 +1,14 @@
 import { create } from "zustand";
 import type { MiniGamePlugin } from "@/engine/types";
 import waterBoilPlugin from "@/games/water-boil";
+import paintDryPlugin from "@/games/paint-dry";
 import devInstantPlugin from "@/games/dev-instant";
+import devPaintPlugin from "@/games/dev-paint";
 
 const BUILTIN_PLUGINS: MiniGamePlugin[] = [
   waterBoilPlugin,
-  ...(import.meta.env.DEV ? [devInstantPlugin] : []),
+  paintDryPlugin,
+  ...(import.meta.env.DEV ? [devInstantPlugin, devPaintPlugin] : []),
 ];
 
 export interface GameRegistryState {
