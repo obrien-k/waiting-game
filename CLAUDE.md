@@ -113,15 +113,15 @@ The `[DEV] Fast Boil` game is only registered in development. The pattern:
 // gameRegistry.ts
 const BUILTIN_PLUGINS = [
   waterBoilPlugin,
-  ...(import.meta.env.DEV ? [devInstantPlugin, devPaintPlugin] : []),
+  ...(import.meta.env.DEV ? [devInstantPlugin, devPaintPlugin, devPlantPlugin] : []),
 ];
 
 // hubStore.ts
 // hubStore.ts — DEFAULT_INSTALLED_GAME_IDS; hydrate() unions this with saved
 // installs so newly-shipped games always appear.
 installedGameIds: import.meta.env.DEV
-  ? ["water-boil", "paint-dry", "dev-instant", "dev-paint"]
-  : ["water-boil", "paint-dry"],
+  ? ["water-boil", "paint-dry", "plant-grow", "dev-instant", "dev-paint", "dev-plant"]
+  : ["water-boil", "paint-dry", "plant-grow"],
 ```
 
 Both files must be updated together — the registry controls routing, the hub store controls which cards appear.

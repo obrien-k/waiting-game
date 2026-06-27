@@ -16,7 +16,14 @@ Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https:
 - `steam` Cargo feature, optional `steamworks` dependency, and `src-tauri/src/steam/` skeleton.
 - `tauri-plugin-single-instance` for Steam relaunch / overlay.
 - Asset-location convention (`src/assets/` vs `src-tauri/resources/`).
-- Remaining idea-backlog games: Watch a Plant Grow (#7), Wait in Line for an Amusement Park (#9).
+- Remaining idea-backlog game: Wait in Line for an Amusement Park (#9).
+
+## [0.2.2] - 2026-06-27
+
+### Added
+
+- **Watching a Plant Grow** mini-game (#7) — third built-in, on the two-axis model. "What" axis: ryegrass / sunflower / rose bush species; "how" axis: windowsill / daily watering / fertilizer / greenhouse. Hard-mode Oak Sapling (2-day grow → 💎), gated behind the greenhouse. The plant scales up and steps through seed → sprout → species growth stages as it matures.
+- `[DEV] Fast Grow` dev-only plugin — ~1s growth for watching hub previews and gold sync tick live.
 
 ## [0.2.1] - 2026-06-27
 
@@ -57,6 +64,7 @@ Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https:
 
 - Initial implementation: Tauri v2 hub window with pop-out floating game windows, the `water-boil` reference mini-game, the `MiniGamePlugin` system, 250 ms `setInterval` ticker, cross-window broadcast/event channels, and the AppData save/load system with offline-progress calculation.
 
-[Unreleased]: https://github.com/obrien-k/waiting-game/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/obrien-k/waiting-game/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/obrien-k/waiting-game/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/obrien-k/waiting-game/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/obrien-k/waiting-game/releases/tag/v0.2.0

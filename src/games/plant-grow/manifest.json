@@ -1,0 +1,9 @@
+{
+  "id": "plant-grow",
+  "name": "Watching a Plant Grow",
+  "version": "1.0.0",
+  "description": "From ryegrass to a two-day oak",
+  "author": "The Waiting Game",
+  "minEngineVersion": "1.0.0",
+  "tags": ["idle", "classic", "garden"]
+}
