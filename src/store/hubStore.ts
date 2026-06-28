@@ -1,26 +1,20 @@
 import { create } from "zustand";
-import { createLedger, addGold, spendGold } from "@/engine/currency";
-import { saveHub, loadHub } from "@/engine/saveLoad";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { createLedger } from "@/engine/currency";
 import { onGoldEarned, onCrystalEarned } from "@/engine/eventBus";
 import type { GoldLedger, CrystalLedger } from "@/engine/types";
-
-// BroadcastChannel syncs gold across all windows (hub + game pop-outs)
-const goldChannel = new BroadcastChannel("waiting-game-gold");
 
 // Built-in games available out of the box. Dev-only games are appended in dev.
 // Hydration unions this with saved installs so newly-shipped games always show.
 const DEFAULT_INSTALLED_GAME_IDS = import.meta.env.DEV
-  ? ["water-boil", "paint-dry", "plant-grow", "dev-instant", "dev-paint", "dev-plant"]
-  : ["water-boil", "paint-dry", "plant-grow"];
+  ? ["water-boil", "paint-dry", "plant-grow", "amusement-park", "dev-instant", "dev-paint", "dev-plant"]
+  : ["water-boil", "paint-dry", "plant-grow", "amusement-park"];
 
-interface GoldSyncMessage {
-  type: "gold-sync";
+interface HubStateData {
   gold: GoldLedger;
-}
-
-interface CrystalSyncMessage {
-  type: "crystal-sync";
   crystals: CrystalLedger;
+  installedGameIds: string[];
 }
 
 interface HubState {
@@ -31,29 +25,15 @@ interface HubState {
   offlineMessage: string | null;
   hydrated: boolean;
 
-  addGold: (amount: number) => void;
-  spendGold: (amount: number) => boolean;
-  addCrystal: () => void;
+  addGold: (amount: number) => Promise<void>;
+  spendGold: (amount: number) => Promise<boolean>;
+  addCrystal: () => Promise<void>;
   setWindowOpen: (gameId: string, open: boolean) => void;
   setOfflineMessage: (msg: string | null) => void;
   hydrate: () => Promise<void>;
-  persist: () => Promise<void>;
 }
 
-export const useHubStore = create<HubState>((set, get) => {
-  goldChannel.addEventListener("message", (event: MessageEvent<GoldSyncMessage | CrystalSyncMessage>) => {
-    if (event.data.type === "gold-sync") set({ gold: event.data.gold });
-    if (event.data.type === "crystal-sync") set({ crystals: event.data.crystals });
-  });
-
-  function broadcastGold(gold: GoldLedger) {
-    goldChannel.postMessage({ type: "gold-sync", gold } satisfies GoldSyncMessage);
-  }
-
-  function broadcastCrystals(crystals: CrystalLedger) {
-    goldChannel.postMessage({ type: "crystal-sync", crystals } satisfies CrystalSyncMessage);
-  }
-
+export const useHubStore = create<HubState>((set) => {
   return {
     gold: createLedger(),
     crystals: { count: 0 },
@@ -62,27 +42,24 @@ export const useHubStore = create<HubState>((set, get) => {
     offlineMessage: null,
     hydrated: false,
 
-    addGold(amount) {
-      const next = addGold(get().gold, amount);
-      set({ gold: next });
-      broadcastGold(next);
-      get().persist();
+    async addGold(amount) {
+      const nextState = await invoke<HubStateData>("add_gold", { amount });
+      set({ gold: nextState.gold });
     },
 
-    spendGold(amount) {
-      const next = spendGold(get().gold, amount);
-      if (!next) return false;
-      set({ gold: next });
-      broadcastGold(next);
-      get().persist();
-      return true;
+    async spendGold(amount) {
+      try {
+        const nextState = await invoke<HubStateData>("spend_gold", { amount });
+        set({ gold: nextState.gold });
+        return true;
+      } catch {
+        return false;
+      }
     },
 
-    addCrystal() {
-      const next: CrystalLedger = { count: get().crystals.count + 1 };
-      set({ crystals: next });
-      broadcastCrystals(next);
-      get().persist();
+    async addCrystal() {
+      const nextState = await invoke<HubStateData>("add_crystal");
+      set({ crystals: nextState.crystals });
     },
 
     setWindowOpen(gameId, open) {
@@ -99,34 +76,26 @@ export const useHubStore = create<HubState>((set, get) => {
 
     async hydrate() {
       try {
-        const saved = await loadHub<{
-          gold: GoldLedger;
-          crystals: CrystalLedger;
-          installedGameIds: string[];
-        }>();
-        if (saved) {
-          // Union so games shipped after this save was written still appear.
-          const installedGameIds = Array.from(
-            new Set([...(saved.installedGameIds ?? []), ...DEFAULT_INSTALLED_GAME_IDS])
-          );
-          set({
-            gold: saved.gold ?? createLedger(),
-            crystals: saved.crystals ?? { count: 0 },
-            installedGameIds,
-            hydrated: true,
-          });
-        } else {
-          set({ hydrated: true });
+        const saved = await invoke<HubStateData>("hydrate_hub_state");
+        const installedGameIds = Array.from(
+          new Set([...(saved.installedGameIds ?? []), ...DEFAULT_INSTALLED_GAME_IDS])
+        );
+        // Sync any new game IDs to backend
+        if (installedGameIds.length > (saved.installedGameIds?.length ?? 0)) {
+           await invoke("set_installed_games", { gameIds: installedGameIds });
         }
-      } catch {
+        
+        set({
+          gold: saved.gold ?? createLedger(),
+          crystals: saved.crystals ?? { count: 0 },
+          installedGameIds,
+          hydrated: true,
+        });
+      } catch (e) {
+        console.error("Hydration failed", e);
         set({ hydrated: true });
       }
-    },
-
-    async persist() {
-      const { gold, crystals, installedGameIds } = get();
-      await saveHub({ gold, crystals, installedGameIds });
-    },
+    }
   };
 });
 
@@ -135,6 +104,16 @@ let listenersStarted = false;
 export async function startGoldListener() {
   if (listenersStarted) return;
   listenersStarted = true;
-  await onGoldEarned(({ amount }) => useHubStore.getState().addGold(amount));
-  await onCrystalEarned(() => useHubStore.getState().addCrystal());
+  
+  // Listen for Rust backend state updates
+  await listen<HubStateData>("hub-state-updated", (event) => {
+    useHubStore.setState({
+      gold: event.payload.gold,
+      crystals: event.payload.crystals,
+      installedGameIds: event.payload.installedGameIds,
+    });
+  });
+
+  await onGoldEarned(async ({ amount }) => await useHubStore.getState().addGold(amount));
+  await onCrystalEarned(async () => await useHubStore.getState().addCrystal());
 }

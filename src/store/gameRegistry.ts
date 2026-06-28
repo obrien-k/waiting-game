@@ -6,11 +6,13 @@ import plantGrowPlugin from "@/games/plant-grow";
 import devInstantPlugin from "@/games/dev-instant";
 import devPaintPlugin from "@/games/dev-paint";
 import devPlantPlugin from "@/games/dev-plant";
+import amusementParkPlugin from "@/games/amusement-park";
 
 const BUILTIN_PLUGINS: MiniGamePlugin[] = [
   waterBoilPlugin,
   paintDryPlugin,
   plantGrowPlugin,
+  amusementParkPlugin,
   ...(import.meta.env.DEV ? [devInstantPlugin, devPaintPlugin, devPlantPlugin] : []),
 ];
 

@@ -1,4 +1,8 @@
 use tauri::Manager;
+mod amusement_park;
+mod state;
+use state::{add_crystal, add_gold, get_hub_state, hydrate_hub_state, set_installed_games, spend_gold, AppState};
+use amusement_park::calculate_amusement_park_offline;
 
 #[tauri::command]
 fn get_open_game_windows(app: tauri::AppHandle) -> Vec<String> {
@@ -13,7 +17,17 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![get_open_game_windows])
+        .manage(AppState::new())
+        .invoke_handler(tauri::generate_handler![
+            get_open_game_windows,
+            get_hub_state,
+            add_gold,
+            spend_gold,
+            add_crystal,
+            set_installed_games,
+            hydrate_hub_state,
+            calculate_amusement_park_offline
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
