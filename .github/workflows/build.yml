@@ -1,0 +1,57 @@
+name: 'Build and Release Tauri App'
+
+on:
+  # This line adds a button to the GitHub UI so you can trigger builds manually
+  workflow_dispatch:
+
+jobs:
+  build-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        # This tells GitHub to run this job three times, once on each OS
+        platform: [macos-latest, ubuntu-22.04, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+    
+    # Explicitly grant permissions to write to the Releases tab
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # Linux requires specific system dependencies (GTK, WebKit) to compile Tauri
+      - name: Install Linux Dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      # The official Tauri action builds the app and uploads it to GitHub Releases
+      - name: Build and Release Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          # GitHub automatically provides this token; you don't need to create it
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # The action automatically replaces __VERSION__ with the version from src-tauri/tauri.conf.json
+          tagName: v__VERSION__ 
+          releaseName: 'The Waiting Game v__VERSION__'
+          releaseBody: 'Automated build.'
+          # Sets it as a draft so it doesn't notify users. You just want to harvest the files!
+          releaseDraft: true 
+          prerelease: false
