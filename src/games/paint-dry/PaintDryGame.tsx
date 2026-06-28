@@ -6,7 +6,9 @@ import {
   type PaintDryState,
   PAINT_DRY_UPGRADES,
   getActiveVariant,
+  getActiveUpgradeIds,
   getTimeRemainingSeconds,
+  getDryingStats,
 } from "./paintDryEngine";
 
 function formatTime(seconds: number): string {
@@ -18,10 +20,11 @@ function formatTime(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export function PaintDryGame({ state: rawState, onUpgradePurchase, onReset }: PluginComponentProps) {
+export function PaintDryGame({ state: rawState, onUpgradePurchase, onSelectUpgrade, onReset }: PluginComponentProps) {
   const state = rawState as PaintDryState;
   const variant = getActiveVariant(state);
   const timeLeft = getTimeRemainingSeconds(state);
+  const stats = getDryingStats(state);
 
   // Wet → dry: the swatch fades from saturated to muted as it cures.
   const wetness = state.isComplete ? 0 : 1 - state.progress;
@@ -118,11 +121,30 @@ export function PaintDryGame({ state: rawState, onUpgradePurchase, onReset }: Pl
 
       <div className="mx-4 h-px bg-white/10" />
 
+      {/* The science — live evaporation readout */}
+      {!variant.isHardMode ? (
+        <div className="mx-4 my-3 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 font-mono">
+          <div className="text-white/30 uppercase tracking-wider text-[10px] mb-1">Drying physics</div>
+          <div className="flex justify-between"><span>air flow</span><span className="text-white/70">{stats.airVelocity.toFixed(1)} m/s</span></div>
+          <div className="flex justify-between"><span>humidity</span><span className="text-white/70">{Math.round(stats.relHumidity * 100)}% RH</span></div>
+          <div className="flex justify-between"><span>film temp</span><span className="text-white/70">{stats.filmTempC.toFixed(0)}°C</span></div>
+          <div className="flex justify-between"><span>evap. flux</span><span className="text-white/70">{stats.fluxGramsPerM2PerHour.toFixed(1)} g/m²·h</span></div>
+        </div>
+      ) : (
+        <div className="mx-4 my-3 px-3 py-2 rounded-lg bg-purple-900/30 border border-purple-500/20 text-xs text-purple-200/60 font-mono">
+          Reaction-limited cure — airflow &amp; heat don&apos;t speed oxidative crosslinking.
+        </div>
+      )}
+
+      <div className="mx-4 h-px bg-white/10" />
+
       <div className="flex-1 overflow-auto px-4 py-3">
         <UpgradePanel
           upgrades={PAINT_DRY_UPGRADES}
           owned={state.ownedUpgradeIds.map((id) => ({ id, level: 1 }))}
           onPurchase={onUpgradePurchase}
+          onSelect={onSelectUpgrade}
+          activeUpgradeIds={getActiveUpgradeIds(state)}
         />
       </div>
     </div>

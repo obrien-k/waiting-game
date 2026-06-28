@@ -7,9 +7,19 @@ interface Props {
   upgrades: UpgradeDef[];
   owned: UpgradeInstance[];
   onPurchase: (id: string) => void;
+  /** Re-select an owned grouped upgrade. Required for grouped (radio) upgrades. */
+  onSelect?: (id: string) => void;
+  /** Ids currently active within their group — rendered as "✓ Active". */
+  activeUpgradeIds?: string[];
 }
 
-export function UpgradePanel({ upgrades, owned, onPurchase }: Props) {
+export function UpgradePanel({
+  upgrades,
+  owned,
+  onPurchase,
+  onSelect,
+  activeUpgradeIds = [],
+}: Props) {
   const goldBalance = useHubStore((s) => s.gold.balance);
 
   return (
@@ -20,21 +30,38 @@ export function UpgradePanel({ upgrades, owned, onPurchase }: Props) {
       {upgrades.map((def) => {
         const instance = owned.find((u) => u.id === def.id);
         const level = instance?.level ?? 0;
-        const maxed = level >= def.maxLevel;
+        const isOwned = level >= def.maxLevel;
         const affordable = canPurchaseUpgrade(upgrades, owned, def.id, goldBalance);
+
+        // Grouped upgrades are radio-selectable once owned: one is active, the
+        // rest are owned-but-inactive and can be re-selected for free.
+        const grouped = def.group !== undefined;
+        const isActive = activeUpgradeIds.includes(def.id);
+        const selectable = grouped && isOwned && !isActive && onSelect;
+
+        function handleClick() {
+          if (selectable) onSelect!(def.id);
+          else if (!isOwned && affordable) onPurchase(def.id);
+        }
+
+        const clickable = selectable || (!isOwned && affordable);
 
         return (
           <button
             key={def.id}
-            onClick={() => !maxed && onPurchase(def.id)}
-            disabled={maxed || !affordable}
+            onClick={handleClick}
+            disabled={!clickable}
             className={`
               flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition-all text-left
-              ${maxed
-                ? "border-green-500/30 bg-green-500/10 text-green-300/60 cursor-default"
-                : affordable
-                  ? "border-amber-500/40 bg-amber-500/10 text-white hover:bg-amber-500/20 hover:border-amber-500/60"
-                  : "border-white/10 bg-white/5 text-white/30 cursor-not-allowed"
+              ${isActive
+                ? "border-green-500/50 bg-green-500/15 text-green-200 cursor-default"
+                : selectable
+                  ? "border-white/20 bg-white/5 text-white/80 hover:bg-white/10 hover:border-white/40"
+                  : isOwned
+                    ? "border-green-500/30 bg-green-500/10 text-green-300/60 cursor-default"
+                    : affordable
+                      ? "border-amber-500/40 bg-amber-500/10 text-white hover:bg-amber-500/20 hover:border-amber-500/60"
+                      : "border-white/10 bg-white/5 text-white/30 cursor-not-allowed"
               }
             `}
           >
@@ -43,7 +70,11 @@ export function UpgradePanel({ upgrades, owned, onPurchase }: Props) {
               <div className="text-xs opacity-60">{def.description}</div>
             </div>
             <div className="ml-3 shrink-0 text-xs font-mono">
-              {maxed ? (
+              {isActive ? (
+                <span className="text-green-400">✓ Active</span>
+              ) : selectable ? (
+                <span className="text-white/60">Select</span>
+              ) : isOwned ? (
                 <span className="text-green-400">✓ Owned</span>
               ) : (
                 <span className={affordable ? "text-[var(--color-gold)]" : "text-white/30"}>

@@ -6,6 +6,7 @@ import {
   type PlantGrowState,
   PLANT_GROW_UPGRADES,
   getActiveVariant,
+  getActiveUpgradeIds,
   getGrowthStageEmoji,
   getTimeRemainingSeconds,
 } from "./plantGrowEngine";
@@ -19,7 +20,7 @@ function formatTime(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export function PlantGrowGame({ state: rawState, onUpgradePurchase, onReset }: PluginComponentProps) {
+export function PlantGrowGame({ state: rawState, onUpgradePurchase, onSelectUpgrade, onReset }: PluginComponentProps) {
   const state = rawState as PlantGrowState;
   const variant = getActiveVariant(state);
   const timeLeft = getTimeRemainingSeconds(state);
@@ -125,6 +126,8 @@ export function PlantGrowGame({ state: rawState, onUpgradePurchase, onReset }: P
           upgrades={PLANT_GROW_UPGRADES}
           owned={state.ownedUpgradeIds.map((id) => ({ id, level: 1 }))}
           onPurchase={onUpgradePurchase}
+          onSelect={onSelectUpgrade}
+          activeUpgradeIds={getActiveUpgradeIds(state)}
         />
       </div>
     </div>

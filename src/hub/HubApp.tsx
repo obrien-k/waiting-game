@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useHubStore, startGoldListener } from "@/store/hubStore";
 import { useGameRegistry, type GameRegistryState } from "@/store/gameRegistry";
 import { onOfflineMessage, onWindowClosed } from "@/engine/eventBus";
+import { listOpenGameIds } from "@/engine/windowManager";
 import { InlineGameShell } from "@/game-window/InlineGameShell";
 import { GameGrid } from "./GameGrid";
 import { GoldDisplay } from "@/components/GoldDisplay";
@@ -22,6 +23,10 @@ export function HubApp() {
   useEffect(() => {
     hydrate();
     startGoldListener();
+    // Reconcile the in-memory open-window set with reality. After a hub reload
+    // it resets to empty, which would re-enable focus for a still-open pop-out
+    // and let two shells race on the same save.
+    listOpenGameIds().then((ids) => ids.forEach((id) => setWindowOpen(id, true)));
     let cleanupOffline: (() => void) | null = null;
     let cleanupClosed: (() => void) | null = null;
     onOfflineMessage((msg) => setOfflineMessage(msg)).then((fn) => { cleanupOffline = fn; });
@@ -96,7 +101,7 @@ export function HubApp() {
 
       {!isBigScreen && (
         <footer className="px-6 py-2 text-xs text-white/20 border-t border-white/10">
-          The Waiting Game v0.1.0
+          The Waiting Game v0.2.3
         </footer>
       )}
     </div>

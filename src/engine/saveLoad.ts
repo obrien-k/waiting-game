@@ -15,7 +15,15 @@ async function ensureSavesDir() {
 
 export async function saveGame(gameId: string, state: unknown): Promise<void> {
   await ensureSavesDir();
-  await writeTextFile(`${SAVES_DIR}/${gameId}.json`, JSON.stringify(state), {
+  // Stamp lastSaveAt so the file always records "time last accounted for".
+  // Offline progress (calculateOfflineProgress) measures from this; without a
+  // fresh stamp it would re-simulate — and re-award — already-counted time on
+  // every reopen, since tick only advances lastSaveAt on a completion/reset.
+  const stamped =
+    state && typeof state === "object"
+      ? { ...(state as object), lastSaveAt: Date.now() }
+      : state;
+  await writeTextFile(`${SAVES_DIR}/${gameId}.json`, JSON.stringify(stamped), {
     baseDir: APP_DIR,
   });
 }

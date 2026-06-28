@@ -30,6 +30,23 @@ export function getActiveVariant(state: PlantGrowState): GameVariant {
   return VARIANTS.find((v) => v.id === state.activeVariantId) ?? VARIANTS[0];
 }
 
+// Maps condition multiplier → the "how" upgrade id that sets it, so the panel
+// can show which owned condition is currently active.
+const HOW_BY_MULTIPLIER: Record<number, string> = {
+  1: "how-windowsill",
+  3: "how-watering",
+  8: "how-fertilizer",
+  20: "how-greenhouse",
+};
+
+/** The currently-active upgrade id in each radio group ("what" + "how"). */
+export function getActiveUpgradeIds(state: PlantGrowState): string[] {
+  const ids = [`what-${state.activeVariantId}`];
+  const how = HOW_BY_MULTIPLIER[state.conditionMultiplier];
+  if (how) ids.push(how);
+  return ids;
+}
+
 // Growth stage emoji by progress — a seed becomes a sprout becomes the species.
 export function getGrowthStageEmoji(state: PlantGrowState): string {
   const variant = getActiveVariant(state);
@@ -72,6 +89,10 @@ export function hydrateState(raw: unknown): PlantGrowState {
 
 export function getRatePerSecond(state: PlantGrowState): number {
   const variant = getActiveVariant(state);
+  // Hard mode is a fixed real-time grind: the condition multiplier does not
+  // apply, so the oak always takes its full 2 days once unlocked. (The unlock
+  // gate is what makes it "impossible" to reach early, not the rate.)
+  if (variant.isHardMode) return 1 / variant.baseDurationSeconds;
   return (1 / variant.baseDurationSeconds) * state.conditionMultiplier;
 }
 
@@ -137,54 +158,70 @@ export function calculateOfflineProgress(
     remaining -= delta;
   }
 
-  return { state: current, offlineGoldEarned: totalGold, offlineCrystalsEarned: totalCrystals };
+  // Mark everything up to now as accounted for, so the next hydrate doesn't
+  // re-simulate this same window.
+  return {
+    state: { ...current, lastSaveAt: nowMs },
+    offlineGoldEarned: totalGold,
+    offlineCrystalsEarned: totalCrystals,
+  };
 }
 
 // ─── Upgrades ────────────────────────────────────────────────────────────────
 // "What" selects the species; "how" sets growing conditions (conditionMultiplier).
 // Hard-mode oak is gated behind the top "how" tier so it can't be reached early.
 
+// A fresh seed: starts over, regardless of whether the prior plant had matured.
+function selectVariant(s: unknown, id: string): PlantGrowState {
+  return { ...(s as PlantGrowState), activeVariantId: id, progress: 0, isComplete: false };
+}
+
 export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   // — What tree (species) —
   {
     id: "what-ryegrass",
+    group: "what",
     label: "Ryegrass",
     description: "It's grass. It grows. Quickly.",
     cost: 0,
     maxLevel: 1,
-    apply: (s) => ({ ...(s as PlantGrowState), activeVariantId: "ryegrass", progress: 0 }),
+    apply: (s) => selectVariant(s, "ryegrass"),
   },
   {
     id: "what-sunflower",
+    group: "what",
     label: "Sunflower",
     description: "Tall, cheerful, a bit more patience",
     cost: 40,
     maxLevel: 1,
     requires: ["what-ryegrass"],
-    apply: (s) => ({ ...(s as PlantGrowState), activeVariantId: "sunflower", progress: 0 }),
+    apply: (s) => selectVariant(s, "sunflower"),
   },
   {
     id: "what-rose",
+    group: "what",
     label: "Rose Bush",
     description: "Slow to bloom, worth more",
     cost: 150,
     maxLevel: 1,
     requires: ["what-sunflower"],
-    apply: (s) => ({ ...(s as PlantGrowState), activeVariantId: "rose", progress: 0 }),
+    apply: (s) => selectVariant(s, "rose"),
   },
   {
     id: "what-oak",
+    group: "what",
     label: "Oak Sapling 💎",
     description: "From acorn to tree — a 2-day grow, awards 1 crystal",
     cost: 600,
     maxLevel: 1,
     requires: ["what-rose", "how-greenhouse"],
-    apply: (s) => ({ ...(s as PlantGrowState), activeVariantId: "oak", progress: 0 }),
+    apply: (s) => selectVariant(s, "oak"),
   },
 
   // — How tree (growing conditions) —
   {
     id: "how-windowsill",
+    group: "how",
     label: "Windowsill",
     description: "A bit of sun — 1×",
     cost: 0,
@@ -193,6 +230,7 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   },
   {
     id: "how-watering",
+    group: "how",
     label: "Daily Watering",
     description: "Keep it hydrated — 3×",
     cost: 50,
@@ -202,6 +240,7 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   },
   {
     id: "how-fertilizer",
+    group: "how",
     label: "Fertilizer",
     description: "Feed the roots — 8×",
     cost: 200,
@@ -211,6 +250,7 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   },
   {
     id: "how-greenhouse",
+    group: "how",
     label: "Greenhouse",
     description: "Perfect climate — 20× (unlocks oak)",
     cost: 600,

@@ -8,6 +8,13 @@ export interface UpgradeDef {
   maxLevel: number;
   requires?: string[];
   icon?: string;
+  /**
+   * Marks a radio-selectable set (e.g. "what"/"how", "pot"/"heater"). Within a
+   * group, exactly one upgrade is active. Once owned, members can be freely
+   * re-selected — buying unlocks, selecting switches. Ungrouped upgrades are
+   * permanent one-time purchases.
+   */
+  group?: string;
   apply: (state: unknown, level: number) => unknown;
 }
 
@@ -19,6 +26,8 @@ export interface UpgradeInstance {
 export interface PluginComponentProps {
   state: unknown;
   onUpgradePurchase: (upgradeId: string) => void;
+  /** Re-select an already-owned grouped upgrade (no cost, no ownership change). */
+  onSelectUpgrade?: (upgradeId: string) => void;
   onReset?: () => void;
   isPopOut: boolean;
 }

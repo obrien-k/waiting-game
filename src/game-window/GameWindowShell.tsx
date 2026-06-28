@@ -114,6 +114,19 @@ export function GameWindowShell({ plugin }: Props) {
     setState(next);
   }
 
+  // Switch the active selection within a grouped upgrade. Unlike a purchase,
+  // this costs no gold and doesn't change ownership — it only re-applies the
+  // owned upgrade's effect (e.g. swap variant or condition).
+  function handleSelectUpgrade(upgradeId: string) {
+    const def = plugin.upgrades.find((u) => u.id === upgradeId);
+    if (!def) return;
+    const owned = (stateRef.current as StateWithUpgrades).ownedUpgradeIds ?? [];
+    if (!owned.includes(upgradeId)) return;
+    const applied = def.apply(stateRef.current, 1);
+    stateRef.current = applied;
+    setState(applied);
+  }
+
   function handleUpgradePurchase(upgradeId: string) {
     const def = plugin.upgrades.find((u) => u.id === upgradeId);
     if (!def) return;
@@ -154,6 +167,7 @@ export function GameWindowShell({ plugin }: Props) {
   const componentProps: PluginComponentProps = {
     state,
     onUpgradePurchase: handleUpgradePurchase,
+    onSelectUpgrade: handleSelectUpgrade,
     onReset: handleReset,
     isPopOut: true,
   };

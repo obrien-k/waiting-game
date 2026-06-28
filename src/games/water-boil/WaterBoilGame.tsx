@@ -8,6 +8,8 @@ import {
   WATER_BOIL_UPGRADES,
   getTimeRemainingSeconds,
   getOwnedUpgradeInstances,
+  getActiveUpgradeIds,
+  goldPerBoil,
 } from "./waterBoilEngine";
 
 function formatTime(seconds: number): string {
@@ -24,7 +26,7 @@ function heatIcon(watts: number): string {
   return "🕯️";
 }
 
-export function WaterBoilGame({ state: rawState, onUpgradePurchase, onReset }: PluginComponentProps) {
+export function WaterBoilGame({ state: rawState, onUpgradePurchase, onSelectUpgrade, onReset }: PluginComponentProps) {
   const state = rawState as WaterBoilState;
   const fraction = (state.currentTemp - 20) / 80;
   const timeLeft = getTimeRemainingSeconds(state);
@@ -50,7 +52,7 @@ export function WaterBoilGame({ state: rawState, onUpgradePurchase, onReset }: P
           <div className="text-center">
             <div className="text-2xl font-bold text-red-400 animate-pulse">Boiling!</div>
             <div className="text-sm text-white/50 mt-1">
-              +{formatGold(state.potVolumeLiters * 10)} gold earned
+              +{formatGold(goldPerBoil(state.potVolumeLiters))} gold earned
             </div>
           </div>
         ) : (
@@ -91,7 +93,7 @@ export function WaterBoilGame({ state: rawState, onUpgradePurchase, onReset }: P
         </div>
         <div className="text-center">
           <div className="text-[var(--color-gold)] font-mono font-semibold">
-            ◈ {formatGold(state.totalBoils * state.potVolumeLiters * 10)}
+            ◈ {formatGold(state.totalBoils * goldPerBoil(state.potVolumeLiters))}
           </div>
           <div>lifetime gold</div>
         </div>
@@ -105,6 +107,8 @@ export function WaterBoilGame({ state: rawState, onUpgradePurchase, onReset }: P
           upgrades={WATER_BOIL_UPGRADES}
           owned={ownedInstances}
           onPurchase={onUpgradePurchase}
+          onSelect={onSelectUpgrade}
+          activeUpgradeIds={getActiveUpgradeIds(state)}
         />
       </div>
     </div>

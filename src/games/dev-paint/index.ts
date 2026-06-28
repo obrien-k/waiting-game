@@ -10,12 +10,11 @@ import {
 } from "@/games/paint-dry/paintDryEngine";
 import { PaintDryGame } from "@/games/paint-dry/PaintDryGame";
 
-// Cranks conditionMultiplier so emulsion (120s base) dries in ~1s — lets you
-// watch the hub card previews and gold sync tick in real time. Dev-only.
-const DEV_MULTIPLIER = 100;
-
+// Cranks the physical drying conditions (blast-furnace heat, gale-force airflow,
+// bone-dry air) so emulsion dries in ~1s — lets you watch the hub card previews
+// and gold sync tick in real time. Dev-only.
 function withDevSpeed(state: PaintDryState): PaintDryState {
-  return { ...state, conditionMultiplier: DEV_MULTIPLIER };
+  return { ...state, airVelocity: 1000, relHumidity: 0, filmTempC: 95 };
 }
 
 const devPaintPlugin: MiniGamePlugin = {

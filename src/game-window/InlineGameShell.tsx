@@ -67,6 +67,17 @@ export function InlineGameShell({ plugin }: Props) {
     setState(next);
   }
 
+  // Re-select an owned grouped upgrade — no cost, no ownership change.
+  function handleSelectUpgrade(upgradeId: string) {
+    const def = plugin.upgrades.find((u) => u.id === upgradeId);
+    if (!def) return;
+    const owned = (stateRef.current as StateWithUpgrades).ownedUpgradeIds ?? [];
+    if (!owned.includes(upgradeId)) return;
+    const applied = def.apply(stateRef.current, 1);
+    stateRef.current = applied;
+    setState(applied);
+  }
+
   function handleUpgradePurchase(upgradeId: string) {
     const def = plugin.upgrades.find((u) => u.id === upgradeId);
     if (!def) return;
@@ -86,6 +97,7 @@ export function InlineGameShell({ plugin }: Props) {
   const componentProps: PluginComponentProps = {
     state,
     onUpgradePurchase: handleUpgradePurchase,
+    onSelectUpgrade: handleSelectUpgrade,
     onReset: handleReset,
     isPopOut: false,
   };

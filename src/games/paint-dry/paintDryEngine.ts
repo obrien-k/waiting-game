@@ -1,23 +1,67 @@
 import type { UpgradeDef, GameVariant } from "@/engine/types";
 
+// ─── Real evaporation physics ────────────────────────────────────────────────
+// A wet coat dries as its solvent (water, for these paints) evaporates. We model
+// the constant-rate drying period: the solvent mass per area divided by the
+// evaporative mass flux gives the drying time.
+//
+//   Psat(T)        Tetens saturation vapour pressure of water           [kPa]
+//   C(T,RH)        vapour concentration = RH·Psat·Mw/(R·T)              [kg/m³]
+//   h_m            convective mass-transfer coeff = h0 + k·√v            [m/s]
+//                  (natural-convection floor + forced convection ∝ v^0.5,
+//                   the laminar flat-plate Sherwood result Sh ∝ Re^0.5)
+//   J              flux = h_m·volatility·(C_surface − C_air)         [kg/m²/s]
+//   rate/s         J / (ρ·thickness·solventFraction)            = 1 / t_dry
+//
+// The "how" upgrades are real drying conditions (airflow / humidity / heat), not
+// an arbitrary multiplier. Constants below are tuned so a standard emulsion coat
+// in still air dries in ~40 min — all are physically plausible and adjustable.
+
+const MW_WATER = 0.018; // kg/mol
+const R_GAS = 8.314; // J/(mol·K)
+const AMBIENT_C = 20; // surrounding room air temperature
+const SOLVENT_DENSITY = 1000; // kg/m³ (water-borne paints)
+const H0 = 0.0015; // natural-convection mass-transfer floor [m/s]
+const K_CONV = 0.004795; // forced-convection coefficient [m/s per √(m/s)]
+
+/** Per-variant film properties (the "what" axis). */
+interface PaintPhysical {
+  wetThicknessMicrons: number;
+  solventVolumeFraction: number;
+  /** Relative solvent volatility vs. water (oil/enamel solvents evaporate slower). */
+  volatility: number;
+}
+
+const PHYSICAL: Record<string, PaintPhysical> = {
+  emulsion: { wetThicknessMicrons: 100, solventVolumeFraction: 0.5, volatility: 1.0 },
+  matte: { wetThicknessMicrons: 110, solventVolumeFraction: 0.5, volatility: 0.5 },
+  gloss: { wetThicknessMicrons: 150, solventVolumeFraction: 0.55, volatility: 0.2 },
+  enamel: { wetThicknessMicrons: 300, solventVolumeFraction: 0.45, volatility: 0.05 },
+};
+
 // ─── Variants ("what" axis) ──────────────────────────────────────────────────
-// Each paint type dries at its own base rate. The "what" tree switches between
-// them; switching resets progress (a fresh coat starts wet).
-// Hard-mode enamel must be ≥ 172,800s (2 days) per the validation layer.
+// baseDurationSeconds is the still-air reference time (used for validation,
+// hard-mode gating, and as the fixed cure time for the reaction-limited enamel).
+// Real rate is computed from the physics above for the non-hard paints.
 
 export const VARIANTS: GameVariant[] = [
-  { id: "emulsion", label: "Emulsion", emoji: "🪣", baseDurationSeconds: 120, goldPerCompletion: 8, isHardMode: false },
-  { id: "matte", label: "Matte", emoji: "🎨", baseDurationSeconds: 300, goldPerCompletion: 18, isHardMode: false },
-  { id: "gloss", label: "Gloss", emoji: "✨", baseDurationSeconds: 900, goldPerCompletion: 60, isHardMode: false },
-  // Hard mode: a thick marine enamel coat. 2-day base cure → 1 💎.
-  { id: "enamel", label: "Marine Enamel", emoji: "🛢️", baseDurationSeconds: 172_800, goldPerCompletion: 500, isHardMode: true },
+  { id: "emulsion", label: "Emulsion", emoji: "🪣", baseDurationSeconds: 2400, goldPerCompletion: 8, isHardMode: false },
+  { id: "matte", label: "Matte", emoji: "🎨", baseDurationSeconds: 5280, goldPerCompletion: 18, isHardMode: false },
+  { id: "gloss", label: "Gloss", emoji: "✨", baseDurationSeconds: 19800, goldPerCompletion: 60, isHardMode: false },
+  // Hard mode: a marine enamel that cures by oxidative crosslinking, not just
+  // evaporation — reaction-limited, so airflow/heat don't accelerate it. Fixed
+  // ~5-day cure (≥ the 2-day hard-mode floor) → 1 💎.
+  { id: "enamel", label: "Marine Enamel", emoji: "🛢️", baseDurationSeconds: 432_000, goldPerCompletion: 500, isHardMode: true },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PaintDryState {
-  activeVariantId: string;   // "what" axis
-  conditionMultiplier: number; // "how" axis — 1.0 = still air
-  progress: number;          // 0.0 → 1.0
+  activeVariantId: string; // "what" axis
+  // "how" axis — physical drying conditions, set by the how-* upgrades.
+  airVelocity: number; // m/s over the film
+  relHumidity: number; // 0..1 ambient
+  filmTempC: number; // °C at the film surface
+  progress: number; // 0.0 → 1.0
   isComplete: boolean;
   totalCompletions: number;
   hardModeCompletions: number;
@@ -30,10 +74,69 @@ export function getActiveVariant(state: PaintDryState): GameVariant {
   return VARIANTS.find((v) => v.id === state.activeVariantId) ?? VARIANTS[0];
 }
 
+// — Physics helpers —
+function psatKPa(tempC: number): number {
+  return 0.6108 * Math.exp((17.27 * tempC) / (tempC + 237.3));
+}
+
+function vapourConc(tempC: number, relHumidity: number): number {
+  const pPa = relHumidity * psatKPa(tempC) * 1000;
+  return (pPa * MW_WATER) / (R_GAS * (tempC + 273.15));
+}
+
+/** Evaporative mass flux from the film [kg/m²/s]. */
+function evapFlux(state: PaintDryState, phys: PaintPhysical): number {
+  const hM = H0 + K_CONV * Math.sqrt(Math.max(0, state.airVelocity));
+  const cSurface = vapourConc(state.filmTempC, 1.0); // saturated at the wet surface
+  const cAir = vapourConc(AMBIENT_C, state.relHumidity);
+  return hM * phys.volatility * Math.max(0, cSurface - cAir);
+}
+
+function solventMassPerArea(phys: PaintPhysical): number {
+  return SOLVENT_DENSITY * phys.wetThicknessMicrons * 1e-6 * phys.solventVolumeFraction;
+}
+
+export function getRatePerSecond(state: PaintDryState): number {
+  const variant = getActiveVariant(state);
+  // Enamel is reaction-limited, not evaporation-limited: fixed cure time,
+  // unaffected by airflow/heat. (Mirrors the hard-mode rule in the other games.)
+  if (variant.isHardMode) return 1 / variant.baseDurationSeconds;
+  const phys = PHYSICAL[variant.id] ?? PHYSICAL.emulsion;
+  return evapFlux(state, phys) / solventMassPerArea(phys);
+}
+
+export function getTimeRemainingSeconds(state: PaintDryState): number {
+  if (state.isComplete) return 0;
+  const rate = getRatePerSecond(state);
+  if (rate <= 0) return Infinity;
+  return (1 - state.progress) / rate;
+}
+
+/** Live physical readout for the UI ("show the math"). */
+export function getDryingStats(state: PaintDryState): {
+  fluxGramsPerM2PerHour: number;
+  filmTempC: number;
+  relHumidity: number;
+  airVelocity: number;
+} {
+  const variant = getActiveVariant(state);
+  const phys = PHYSICAL[variant.id] ?? PHYSICAL.emulsion;
+  const flux = variant.isHardMode ? 0 : evapFlux(state, phys);
+  return {
+    fluxGramsPerM2PerHour: flux * 1000 * 3600,
+    filmTempC: state.filmTempC,
+    relHumidity: state.relHumidity,
+    airVelocity: state.airVelocity,
+  };
+}
+
 export function getInitialState(): PaintDryState {
+  const still = HOW_CONDITIONS["how-still"];
   return {
     activeVariantId: VARIANTS[0].id,
-    conditionMultiplier: 1.0,
+    airVelocity: still.airVelocity,
+    relHumidity: still.relHumidity,
+    filmTempC: still.filmTempC,
     progress: 0,
     isComplete: false,
     totalCompletions: 0,
@@ -50,7 +153,9 @@ export function hydrateState(raw: unknown): PaintDryState {
   const r = raw as Partial<PaintDryState>;
   return {
     activeVariantId: r.activeVariantId ?? defaults.activeVariantId,
-    conditionMultiplier: r.conditionMultiplier ?? 1.0,
+    airVelocity: r.airVelocity ?? defaults.airVelocity,
+    relHumidity: r.relHumidity ?? defaults.relHumidity,
+    filmTempC: r.filmTempC ?? defaults.filmTempC,
     progress: r.progress ?? 0,
     isComplete: r.isComplete ?? false,
     totalCompletions: r.totalCompletions ?? 0,
@@ -59,18 +164,6 @@ export function hydrateState(raw: unknown): PaintDryState {
     ownedUpgradeIds: r.ownedUpgradeIds ?? defaults.ownedUpgradeIds,
     lastSaveAt: r.lastSaveAt ?? Date.now(),
   };
-}
-
-export function getRatePerSecond(state: PaintDryState): number {
-  const variant = getActiveVariant(state);
-  return (1 / variant.baseDurationSeconds) * state.conditionMultiplier;
-}
-
-export function getTimeRemainingSeconds(state: PaintDryState): number {
-  if (state.isComplete) return 0;
-  const rate = getRatePerSecond(state);
-  if (rate <= 0) return Infinity;
-  return (1 - state.progress) / rate;
 }
 
 export function tick(
@@ -128,85 +221,133 @@ export function calculateOfflineProgress(
     remaining -= delta;
   }
 
-  return { state: current, offlineGoldEarned: totalGold, offlineCrystalsEarned: totalCrystals };
+  // Mark everything up to now as accounted for, so the next hydrate doesn't
+  // re-simulate this same window.
+  return {
+    state: { ...current, lastSaveAt: nowMs },
+    offlineGoldEarned: totalGold,
+    offlineCrystalsEarned: totalCrystals,
+  };
 }
 
 // ─── Upgrades ────────────────────────────────────────────────────────────────
-// "What" selects the paint; "how" sets drying conditions (conditionMultiplier).
-// Hard-mode enamel is gated behind the top "how" tier so it can't be reached early.
+// "What" selects the paint film; "how" sets real drying conditions. Buying
+// unlocks; selecting an owned tier switches to it. Hard-mode enamel is gated
+// behind the top "how" tier so it can't be reached early.
+
+/** Physical conditions each "how" tier applies. Each tier keeps the prior
+ *  benefits (a heat lamp run still has the fan on), so the ladder is monotonic. */
+const HOW_CONDITIONS: Record<
+  string,
+  { airVelocity: number; relHumidity: number; filmTempC: number }
+> = {
+  "how-still": { airVelocity: 0.1, relHumidity: 0.6, filmTempC: 20 },
+  "how-fan": { airVelocity: 2.5, relHumidity: 0.6, filmTempC: 20 },
+  "how-dehumidifier": { airVelocity: 2.5, relHumidity: 0.2, filmTempC: 20 },
+  "how-heatlamp": { airVelocity: 2.5, relHumidity: 0.2, filmTempC: 48 },
+};
+
+function selectVariant(s: unknown, id: string): PaintDryState {
+  // A fresh coat: starts wet, regardless of whether the prior one had finished.
+  return { ...(s as PaintDryState), activeVariantId: id, progress: 0, isComplete: false };
+}
+
+function selectCondition(s: unknown, howId: string): PaintDryState {
+  const c = HOW_CONDITIONS[howId];
+  return { ...(s as PaintDryState), airVelocity: c.airVelocity, relHumidity: c.relHumidity, filmTempC: c.filmTempC };
+}
+
+/** The currently-active upgrade id in each radio group ("what" + "how"). */
+export function getActiveUpgradeIds(state: PaintDryState): string[] {
+  const ids = [`what-${state.activeVariantId}`];
+  const how = Object.keys(HOW_CONDITIONS).find((id) => {
+    const c = HOW_CONDITIONS[id];
+    return c.airVelocity === state.airVelocity && c.relHumidity === state.relHumidity && c.filmTempC === state.filmTempC;
+  });
+  if (how) ids.push(how);
+  return ids;
+}
 
 export const PAINT_DRY_UPGRADES: UpgradeDef[] = [
-  // — What tree (paint type) —
+  // — What tree (paint film) —
   {
     id: "what-emulsion",
+    group: "what",
     label: "Emulsion",
-    description: "Water-based wall paint — dries quick",
+    description: "Thin water-based wall paint — dries quick",
     cost: 0,
     maxLevel: 1,
-    apply: (s) => ({ ...(s as PaintDryState), activeVariantId: "emulsion", progress: 0 }),
+    apply: (s) => selectVariant(s, "emulsion"),
   },
   {
     id: "what-matte",
+    group: "what",
     label: "Matte",
-    description: "Flat finish, a little more patience",
+    description: "Flat finish, less volatile, a little more patience",
     cost: 40,
     maxLevel: 1,
     requires: ["what-emulsion"],
-    apply: (s) => ({ ...(s as PaintDryState), activeVariantId: "matte", progress: 0 }),
+    apply: (s) => selectVariant(s, "matte"),
   },
   {
     id: "what-gloss",
+    group: "what",
     label: "Gloss",
-    description: "Shiny, slow, worth more",
+    description: "Thick, slow-evaporating, worth more",
     cost: 150,
     maxLevel: 1,
     requires: ["what-matte"],
-    apply: (s) => ({ ...(s as PaintDryState), activeVariantId: "gloss", progress: 0 }),
+    apply: (s) => selectVariant(s, "gloss"),
   },
   {
     id: "what-enamel",
+    group: "what",
     label: "Marine Enamel 💎",
-    description: "Thick industrial coat — a 2-day cure, awards 1 crystal",
+    description: "Thick industrial coat — a ~5-day chemical cure, awards 1 crystal",
     cost: 600,
     maxLevel: 1,
     requires: ["what-gloss", "how-heatlamp"],
-    apply: (s) => ({ ...(s as PaintDryState), activeVariantId: "enamel", progress: 0 }),
+    apply: (s) => selectVariant(s, "enamel"),
   },
 
   // — How tree (drying conditions) —
   {
     id: "how-still",
+    group: "how",
     label: "Still Air",
-    description: "Just let it sit — 1×",
+    description: "Just let it sit — 0.1 m/s, 60% RH, 20°C",
     cost: 0,
     maxLevel: 1,
-    apply: (s) => ({ ...(s as PaintDryState), conditionMultiplier: 1.0 }),
+    apply: (s) => selectCondition(s, "how-still"),
   },
   {
     id: "how-fan",
+    group: "how",
     label: "Box Fan",
-    description: "Airflow over the coat — 3×",
+    description: "Airflow over the coat — 2.5 m/s",
     cost: 50,
     maxLevel: 1,
     requires: ["how-still"],
-    apply: (s) => ({ ...(s as PaintDryState), conditionMultiplier: 3.0 }),
+    apply: (s) => selectCondition(s, "how-fan"),
   },
   {
     id: "how-dehumidifier",
+    group: "how",
     label: "Dehumidifier",
-    description: "Pull the moisture out — 8×",
+    description: "Drier air pulls solvent faster — 20% RH",
     cost: 200,
     maxLevel: 1,
     requires: ["how-fan"],
-    apply: (s) => ({ ...(s as PaintDryState), conditionMultiplier: 8.0 }),
+    apply: (s) => selectCondition(s, "how-dehumidifier"),
   },
   {
     id: "how-heatlamp",
+    group: "how",
     label: "Heat Lamp",
-    description: "Bake it dry — 20× (unlocks enamel)",
+    description: "Warm film, higher vapour pressure — 48°C (unlocks enamel)",
     cost: 600,
     maxLevel: 1,
     requires: ["how-dehumidifier"],
-    apply: (s) => ({ ...(s as PaintDryState), conditionMultiplier: 20.0 }),
+    apply: (s) => selectCondition(s, "how-heatlamp"),
   },
 ];

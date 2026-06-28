@@ -46,3 +46,17 @@ export async function isGameWindowOpen(gameId: string): Promise<boolean> {
   const win = await WebviewWindow.getByLabel(`game-${gameId}`);
   return win !== null;
 }
+
+/**
+ * Game ids that currently have a live pop-out window. Used by the hub to
+ * reconcile `openWindowIds` on startup — that set is in-memory only, so after a
+ * hub reload it would otherwise show as empty and re-enable focus for a game
+ * that's still popped out, letting two shells write the same save.
+ */
+export async function listOpenGameIds(): Promise<string[]> {
+  const all = await WebviewWindow.getAll();
+  return all
+    .map((w) => w.label)
+    .filter((label) => label.startsWith("game-"))
+    .map((label) => label.slice("game-".length));
+}

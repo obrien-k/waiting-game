@@ -132,12 +132,17 @@ Every game has two independent upgrade trees. This is load-bearing — don't fla
 
 | Axis | What it does | State field modified |
 |---|---|---|
-| **What** | Selects which `GameVariant` is active | `activeVariantId` |
-| **How** | Multiplies the speed | `conditionMultiplier` |
+| **What** | Selects which `GameVariant` is active | `activeVariantId` (or, for water-boil, `potVolumeLiters`) |
+| **How** | Sets the speed / conditions | `conditionMultiplier`, or real physical fields |
 
-`ratePerSecond = (1 / variant.baseDurationSeconds) × conditionMultiplier`
+Rate depends on the game's model:
+- **plant-grow** (abstract): `ratePerSecond = (1 / variant.baseDurationSeconds) × conditionMultiplier`
+- **paint-dry** (physics): rate is derived from an evaporation model — the "how" upgrades set real conditions (`airVelocity`, `relHumidity`, `filmTempC`), not a multiplier. `baseDurationSeconds` is only a still-air reference + validation bound.
+- **water-boil** (physics): rate from Joules; "what" = pot volume, "how" = heater watts. Gold per boil `= volume² × 20` (superlinear so a bigger pot improves gold-rate, not just cycle length).
 
-The "what" tree also resets `progress: 0` on switch (changing what you're waiting for starts over). The "how" tree never resets progress.
+**Unlock ≠ select.** Buying a grouped upgrade unlocks it; once owned, members of the same `group` (`"what"`/`"how"`, `"pot"`/`"heater"`) are freely re-selectable. Shells expose `onSelectUpgrade`, which re-runs `def.apply` with no gold cost and no ownership change; `UpgradePanel` renders owned members as **Select** / **✓ Active** using `activeUpgradeIds` from the game component. Don't gate selection behind a one-time purchase.
+
+The "what" tree resets `progress: 0` **and** `isComplete: false` on switch (a fresh start). The "how" tree never resets progress. Pot switches in water-boil reset `currentTemp`/`isBoiling` (fresh cold water).
 
 ### Crystal currency
 
@@ -153,6 +158,7 @@ A `GameVariant` with `isHardMode: true`:
 - Awards 1 crystal on completion
 - Renders with purple colour treatment and a 💎 badge in the UI
 - Must be gated behind "how" upgrade prerequisites so players can't immediately access it
+- **Is immune to the speed multiplier / conditions** — hard mode is a fixed real-time grind (`rate = 1 / baseDurationSeconds`), so it always takes its full duration once unlocked. The unlock gate, not the rate, is what makes it "impossible" to reach early. (Without this, e.g. plant's 20× greenhouse turned the 2-day oak into ~2 h.)
 
 ### Plugin validation
 
