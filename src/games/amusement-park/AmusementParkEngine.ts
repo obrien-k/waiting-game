@@ -213,9 +213,9 @@ export const AMUSEMENT_PARK_UPGRADES: UpgradeDef[] = [
 // ─── Helpers ─────────────────────────────────────────────────
 
 export function getOwnedUpgradeInstances(
-  ownedIds: string[]
+  ownedIds: string[] | undefined
 ): UpgradeInstance[] {
-  return ownedIds.map((id) => ({ id, level: 1 }));
+  return (ownedIds ?? []).map((id) => ({ id, level: 1 }));
 }
 
 export function getActiveUpgradeIds(state: AmusementParkState): string[] {
