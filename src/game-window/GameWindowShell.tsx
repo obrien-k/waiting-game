@@ -8,6 +8,7 @@ import { broadcastTick, emitGoldEarned, emitCrystalEarned, emitWindowClosed } fr
 import { PLUGIN_LIMITS } from "@/engine/pluginValidation";
 import { GameTicker } from "@/engine/ticker";
 import { canPurchaseUpgrade, purchaseUpgrade } from "@/engine/upgradeSystem";
+import { GameErrorBoundary } from "./GameErrorBoundary";
 
 interface Props {
   plugin: MiniGamePlugin;
@@ -36,9 +37,9 @@ export function GameWindowShell({ plugin }: Props) {
 
   // Hydrate from save file on mount
   useEffect(() => {
-    loadGame<unknown>(plugin.id).then((saved) => {
+    loadGame<unknown>(plugin.id).then(async (saved) => {
       if (saved) {
-        const hydrated = plugin.hydrateState(saved);
+        const hydrated = await Promise.resolve(plugin.hydrateState(saved));
         setState(hydrated);
         stateRef.current = hydrated;
       }
@@ -209,7 +210,9 @@ export function GameWindowShell({ plugin }: Props) {
       {/* Game content */}
       <div className="flex-1 overflow-auto">
         {loaded ? (
-          <plugin.Component {...componentProps} />
+          <GameErrorBoundary resetKey={plugin.id}>
+            <plugin.Component {...componentProps} />
+          </GameErrorBoundary>
         ) : (
           <div className="flex items-center justify-center h-full text-white/30">
             Loading…

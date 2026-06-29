@@ -60,7 +60,7 @@ export interface MiniGamePlugin {
   readonly version: string;
 
   getInitialState(): unknown;
-  hydrateState(raw: unknown): unknown;
+  hydrateState(raw: unknown): unknown | Promise<unknown>;
   tick(state: unknown, deltaMs: number): TickResult;
 
   Component: React.ComponentType<PluginComponentProps>;
