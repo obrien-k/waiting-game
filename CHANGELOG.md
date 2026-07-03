@@ -7,16 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Wait in Line for an Amusement Park** mini-game (#9) — fourth built-in. Unlike the completion-based games, it's a live queueing simulation (M/G/1-style): guests arrive, rides serve them from the queue, and gold is earned per guest served rather than per completion. "What" axis picks the ride (carousel / coaster / waterslide); throughput scales with the "how" upgrades. (Has an open hydration bug — see #10.)
+- **Artifact ecosystem — the Garden** (Phase 1, plant-grow only). Completing a plant now mints a collectible flora artifact; the hub grows a **Garden** panel showing each species with a live `×count`, and not-yet-grown species as dimmed silhouettes. Hoard model — counts aggregate in a Rust `ArtifactLedger` so `hub.json` stays small. Rides the existing crystal-crediting path (game emits `artifact-earned` → hub-only listener credits → all windows mirror), so no `plugin.tick` signature change. Extensible: a game joins by declaring an `artifactCatalog` and returning `artifactId` from `tick` — no hub/Rust changes needed for the next category (fauna→Aquarium, …).
+- **Game unlocking** — cards are gated behind a gold cost (`UNLOCK_COSTS`: plant-grow 1,000 · paint-dry 5,000 · amusement-park 15,000; water-boil free) and unlocked via a Rust `unlock_game` command that debits gold atomically.
+- **Repeatable upgrades with cost scaling** — upgrades can now level up beyond one purchase, priced `cost × scaling^level`. Ownership is a flat id list; a level is derived by counting duplicates (`getOwnedInstances`), keeping saves format-stable.
+
+### Changed
+
+- **[ADR 0002](docs/adr/0002-two-tier-plugin-sandbox.md) accepted** — two-tier plugin trust model (staff-approved native vs community sandboxed iframe with a `postMessage` broker). Supersedes ADR 0001.
+
+### Fixed
+
+- **Gold no longer truncates on live completions.** The per-tick gold ceiling (`goldPerTickMax`) was 50 — below legitimate completion payouts — so watching a rose complete credited 50 instead of 75, and an oak 50 instead of 500, while the offline path paid full. Raised to the completion ceiling (500) so online matches offline; a regression test pins `goldPerTickMax ≥ goldPerCompletion.max`.
+- **Amusement Park: NaN queue counter / inert game** (#10, partial). `hydrateState` now runs saved state through `clampState`, healing a non-finite `queueLength` (a corrupt `null` save) back to a sane value, and `tick` re-clamps so one bad value can't propagate. (Residual: `totalServed`/`abandoned` aren't yet clamped — tracked on #10.)
+- **Async plugin hydration + crash containment** (#11) — `hydrateState` is awaited so state can't become a `Promise`, and a plugin that throws is contained rather than blanking its window.
+
 ### Planned
 
 Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https://github.com/obrien-k/waiting-game/issues):
 
 - Real Content-Security-Policy (replace `security.csp = null`) before any external/Workshop content loads.
-- Workshop plugin sandbox / permission model — see [ADR 0001](docs/adr/0001-workshop-plugin-sandbox.md).
+- Workshop plugin sandbox / permission model — decision recorded in [ADR 0002](docs/adr/0002-two-tier-plugin-sandbox.md) (supersedes 0001); implementation pending (#3).
 - `steam` Cargo feature, optional `steamworks` dependency, and `src-tauri/src/steam/` skeleton.
 - `tauri-plugin-single-instance` for Steam relaunch / overlay.
 - Asset-location convention (`src/assets/` vs `src-tauri/resources/`).
-- Remaining idea-backlog game: Wait in Line for an Amusement Park (#9).
 
 ## [0.2.3] - 2026-06-27
 
