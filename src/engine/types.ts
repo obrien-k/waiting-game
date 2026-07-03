@@ -15,6 +15,10 @@ export interface UpgradeDef {
    * permanent one-time purchases.
    */
   group?: string;
+  /** Human-readable header for `group`, shown by UpgradePanel (e.g. "Heat Source"). */
+  groupLabel?: string;
+  /** Per-level cost multiplier for repeatable upgrades (maxLevel > 1): cost × scaling^level. Default 1 (flat). */
+  costScaling?: number;
   apply: (state: unknown, level: number) => unknown;
 }
 
@@ -51,6 +55,13 @@ export interface TickResult {
   goldEarned: number;
   /** Always 0 or 1. Shells clamp this — engines must not return > 1. */
   crystalsEarned: number;
+  /**
+   * Bare artifact id minted this tick (e.g. the completed variant's id), set on
+   * a completion. Shells namespace it to `${plugin.id}:${artifactId}` before
+   * crediting. Absent when nothing was minted — additive, so engines that never
+   * set it are unaffected.
+   */
+  artifactId?: string;
 }
 
 export interface MiniGamePlugin {
@@ -69,8 +80,41 @@ export interface MiniGamePlugin {
   /** Declares available modes. First entry is the default. */
   variants?: GameVariant[];
 
+  /**
+   * Collectible artifacts this game can mint (the ecosystem/Garden system). The
+   * hub merges every plugin's catalog to render collections by category. Keys
+   * are `${plugin.id}:${bareArtifactId}`. Optional — a game opts in by declaring
+   * it and returning `artifactId` from `tick`.
+   */
+  artifactCatalog?: ArtifactCatalogEntry[];
+
   /** Optional: reset game state to a fresh start (preserves upgrades). */
   reset?: (state: unknown) => unknown;
+}
+
+export type ArtifactCategory = "flora" | "fauna" | "relic" | "trophy";
+
+/** Static display metadata for one artifact type. Buffs (Phase 2) attach here. */
+export interface ArtifactCatalogEntry {
+  /** Fully-qualified: `${plugin.id}:${bareArtifactId}`, e.g. "plant-grow:oak". */
+  id: string;
+  gameId: string;
+  category: ArtifactCategory;
+  name: string;
+  emoji: string;
+  description: string;
+}
+
+/** One aggregated artifact type in the hub ledger (mirrors the Rust struct). */
+export interface ArtifactEntry {
+  count: number;
+  firstAcquiredAt: number;
+  lastAcquiredAt: number;
+}
+
+export interface ArtifactLedger {
+  /** Keyed by fully-qualified artifact type id. */
+  entries: Record<string, ArtifactEntry>;
 }
 
 export interface CrystalLedger {

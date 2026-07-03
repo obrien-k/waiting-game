@@ -1,7 +1,7 @@
 use tauri::Manager;
 mod amusement_park;
 mod state;
-use state::{add_crystal, add_gold, get_hub_state, hydrate_hub_state, set_installed_games, spend_gold, AppState};
+use state::{add_artifact, add_crystal, add_gold, get_hub_state, hydrate_hub_state, reset_hub_state, set_installed_games, spend_gold, unlock_game, AppState};
 use amusement_park::calculate_amusement_park_offline;
 
 #[tauri::command]
@@ -24,6 +24,9 @@ pub fn run() {
             add_gold,
             spend_gold,
             add_crystal,
+            add_artifact,
+            unlock_game,
+            reset_hub_state,
             set_installed_games,
             hydrate_hub_state,
             calculate_amusement_park_offline

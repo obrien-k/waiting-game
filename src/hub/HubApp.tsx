@@ -5,6 +5,7 @@ import { onOfflineMessage, onWindowClosed } from "@/engine/eventBus";
 import { listOpenGameIds } from "@/engine/windowManager";
 import { InlineGameShell } from "@/game-window/InlineGameShell";
 import { GameGrid } from "./GameGrid";
+import { Garden } from "./Garden";
 import { GoldDisplay } from "@/components/GoldDisplay";
 import { CrystalDisplay } from "@/components/CrystalDisplay";
 
@@ -14,6 +15,13 @@ export function HubApp() {
   const offlineMessage = useHubStore((s) => s.offlineMessage);
   const setOfflineMessage = useHubStore((s) => s.setOfflineMessage);
   const setWindowOpen = useHubStore((s) => s.setWindowOpen);
+  const resetAllProgress = useHubStore((s) => s.resetAllProgress);
+
+  async function handleResetAllProgress() {
+    if (!window.confirm("Reset all progress? This wipes gold, crystals, unlocks, and every game's save file.")) return;
+    await resetAllProgress();
+    window.location.reload();
+  }
 
   const [focusedGameId, setFocusedGameId] = useState<string | null>(null);
   const focusedPlugin = useGameRegistry(
@@ -66,6 +74,15 @@ export function HubApp() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {import.meta.env.DEV && (
+            <button
+              onClick={handleResetAllProgress}
+              title="Dev only: wipe gold, crystals, unlocks, and all save files"
+              className="px-2 py-1 rounded text-xs border border-red-500/30 text-red-300/70 hover:text-red-200 hover:border-red-500/60 transition-colors"
+            >
+              Reset Progress
+            </button>
+          )}
           <CrystalDisplay />
           <GoldDisplay />
         </div>
@@ -94,6 +111,7 @@ export function HubApp() {
           <InlineGameShell plugin={focusedPlugin} />
         ) : (
           <div className="p-6">
+            <Garden />
             <GameGrid onFocus={setFocusedGameId} />
           </div>
         )}

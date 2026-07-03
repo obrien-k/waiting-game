@@ -1,6 +1,7 @@
 import { ProgressBar } from "@/components/ProgressBar";
 import { UpgradePanel } from "@/components/UpgradePanel";
 import { formatGold } from "@/engine/currency";
+import { getOwnedInstances } from "@/engine/upgradeSystem";
 import type { PluginComponentProps } from "@/engine/types";
 import {
   type PaintDryState,
@@ -141,7 +142,7 @@ export function PaintDryGame({ state: rawState, onUpgradePurchase, onSelectUpgra
       <div className="flex-1 overflow-auto px-4 py-3">
         <UpgradePanel
           upgrades={PAINT_DRY_UPGRADES}
-          owned={state.ownedUpgradeIds.map((id) => ({ id, level: 1 }))}
+          owned={getOwnedInstances(state.ownedUpgradeIds)}
           onPurchase={onUpgradePurchase}
           onSelect={onSelectUpgrade}
           activeUpgradeIds={getActiveUpgradeIds(state)}

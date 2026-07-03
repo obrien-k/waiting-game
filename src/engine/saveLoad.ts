@@ -3,6 +3,7 @@ import {
   readTextFile,
   exists,
   mkdir,
+  remove,
   BaseDirectory,
 } from "@tauri-apps/plugin-fs";
 
@@ -34,6 +35,13 @@ export async function loadGame<T>(gameId: string): Promise<T | null> {
   if (!fileExists) return null;
   const raw = await readTextFile(path, { baseDir: APP_DIR });
   return JSON.parse(raw) as T;
+}
+
+export async function deleteSave(gameId: string): Promise<void> {
+  const path = `${SAVES_DIR}/${gameId}.json`;
+  if (await exists(path, { baseDir: APP_DIR })) {
+    await remove(path, { baseDir: APP_DIR });
+  }
 }
 
 export async function saveHub(data: unknown): Promise<void> {

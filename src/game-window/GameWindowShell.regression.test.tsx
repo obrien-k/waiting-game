@@ -1,5 +1,5 @@
 // Regression: an async hydrateState that wasn't awaited left `state` as a Promise,
-// whose `.ownedUpgradeIds` was undefined — `getOwnedUpgradeInstances` then threw and,
+// whose `.ownedUpgradeIds` was undefined — `getOwnedInstances` then threw and,
 // with no error boundary, blanked the whole window. The on-disk fallout was a save
 // file containing only `{lastSaveAt}` (a Promise spread to nothing, then stamped).
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -31,6 +31,7 @@ vi.mock("@/engine/eventBus", () => ({
   onTickBroadcast: vi.fn(() => () => {}),
 }));
 vi.mock("@/store/hubStore", () => ({
+  startHubStateSync: vi.fn().mockResolvedValue(undefined),
   useHubStore: Object.assign(
     (sel: (s: unknown) => unknown) => sel({ gold: { balance: 0 }, hydrate: vi.fn(), spendGold: vi.fn() }),
     { getState: () => ({ hydrate: vi.fn(), spendGold: vi.fn() }) }

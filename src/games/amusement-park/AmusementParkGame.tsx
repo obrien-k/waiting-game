@@ -1,11 +1,11 @@
 import { ProgressBar } from "@/components/ProgressBar";
 import { UpgradePanel } from "@/components/UpgradePanel";
 import { formatGold } from "@/engine/currency";
+import { getOwnedInstances } from "@/engine/upgradeSystem";
 import type { PluginComponentProps } from "@/engine/types";
 import {
   type AmusementParkState,
   AMUSEMENT_PARK_UPGRADES,
-  getOwnedUpgradeInstances,
 } from "./AmusementParkEngine";
 
 function formatRate(guestsPerSec: number): string {
@@ -27,7 +27,7 @@ export function AmusementParkGame({
   onSelectUpgrade,
 }: PluginComponentProps) {
   const state = rawState as AmusementParkState;
-  const ownedInstances = getOwnedUpgradeInstances(state.ownedUpgradeIds);
+  const ownedInstances = getOwnedInstances(state.ownedUpgradeIds ?? []);
   const heat = heatLabel(state.heatIndex);
 
   // Compute utilization (ρ = λ * E[S])

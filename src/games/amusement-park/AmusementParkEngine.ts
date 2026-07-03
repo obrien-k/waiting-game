@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { UpgradeDef, UpgradeInstance } from "@/engine/types";
+import type { UpgradeDef } from "@/engine/types";
 
 export interface AmusementParkState {
   queueLength: number;
@@ -30,12 +30,29 @@ export const getInitialState = (): AmusementParkState => ({
   goldPerGuest: 10.0,
 });
 
+// Safety net beyond what the upgrade math can reach (maxLevel × costScaling
+// already caps each upgrade) — guards against a corrupted/hand-edited save
+// or a future compounding upgrade blowing these up (e.g. paretoScale → ~0
+// sends serviceRate → ∞; the pre-fix purchase bug that let repeatable
+// upgrades be bought unboundedly hit exactly this).
+function clampState(state: AmusementParkState): AmusementParkState {
+  return {
+    ...state,
+    arrivalRate: Math.min(Math.max(state.arrivalRate, 0), 10),
+    paretoScale: Math.min(Math.max(state.paretoScale, 0.5), 50),
+    paretoAlpha: Math.min(Math.max(state.paretoAlpha, 2.01), 10),
+    queueLength: Math.min(Math.max(state.queueLength, 0), 1_000_000),
+    heatIndex: Math.min(Math.max(state.heatIndex, 0), 1),
+    goldPerGuest: Math.min(Math.max(state.goldPerGuest, 0), 1000),
+  };
+}
+
 export const hydrateState = async (raw: unknown): Promise<AmusementParkState> => {
   const state = raw as Partial<AmusementParkState>;
-  const hydrated: AmusementParkState = {
+  const hydrated: AmusementParkState = clampState({
     ...getInitialState(),
     ...state,
-  };
+  });
 
   const now = Date.now();
   const elapsedSeconds = (now - hydrated.lastSaveAt) / 1000.0;
@@ -69,7 +86,7 @@ export const hydrateState = async (raw: unknown): Promise<AmusementParkState> =>
   }
 
   hydrated.lastSaveAt = now;
-  return hydrated;
+  return clampState(hydrated);
 };
 
 // Fast local UI tick — deterministic approximation for smooth visuals
@@ -89,12 +106,12 @@ export const tick = (state: AmusementParkState, deltaMs: number) => {
   goldEarned += served * state.goldPerGuest;
 
   return {
-    next: {
+    next: clampState({
       ...state,
       queueLength: Math.max(0, state.queueLength + arrivals - served),
       totalServed: state.totalServed + served,
       lastSaveAt: Date.now(),
-    },
+    }),
     goldEarned,
     crystalsEarned: 0,
   };
@@ -110,7 +127,7 @@ export const reset = (state: AmusementParkState): AmusementParkState => ({
 
 // ─── Upgrades ────────────────────────────────────────────────
 // Two-axis: "what" = ride type, "how" = ride improvements
-// Cost scaling: Tier 1 = Base × 1.15^Level
+// Repeatable "how" upgrades scale via costScaling (cost × scaling^level).
 
 export const AMUSEMENT_PARK_UPGRADES: UpgradeDef[] = [
   // ── "What" axis: Ride type (radio-selectable, resets queue on switch) ──
@@ -121,6 +138,7 @@ export const AMUSEMENT_PARK_UPGRADES: UpgradeDef[] = [
     cost: 0,
     maxLevel: 1,
     group: "what",
+    groupLabel: "Ride",
     icon: "🎠",
     apply: (state, _level) => ({
       ...(state as AmusementParkState),
@@ -135,9 +153,10 @@ export const AMUSEMENT_PARK_UPGRADES: UpgradeDef[] = [
     id: "ride-coaster",
     label: "Roller Coaster",
     description: "Thrilling! Longer ride time, but 3× gold.",
-    cost: 500,
+    cost: 6000,
     maxLevel: 1,
     group: "what",
+    groupLabel: "Ride",
     icon: "🎢",
     apply: (state, _level) => ({
       ...(state as AmusementParkState),
@@ -152,9 +171,10 @@ export const AMUSEMENT_PARK_UPGRADES: UpgradeDef[] = [
     id: "ride-waterslide",
     label: "Water Slide",
     description: "Reduces heat index friction by 50%.",
-    cost: 2000,
+    cost: 25000,
     maxLevel: 1,
     group: "what",
+    groupLabel: "Ride",
     icon: "🌊",
     requires: ["ride-coaster"],
     apply: (state, _level) => ({
@@ -173,9 +193,11 @@ export const AMUSEMENT_PARK_UPGRADES: UpgradeDef[] = [
     id: "extra-carts",
     label: "Extra Carts",
     description: "Faster service: ×0.8 ride time per level.",
-    cost: 100,
+    cost: 150,
+    costScaling: 1.6,
     maxLevel: 5,
     group: "how",
+    groupLabel: "Ride Upgrades",
     icon: "🛒",
     apply: (state, level) => ({
       ...(state as AmusementParkState),
@@ -186,9 +208,11 @@ export const AMUSEMENT_PARK_UPGRADES: UpgradeDef[] = [
     id: "shade-canopy",
     label: "Shade Canopy",
     description: "Reduces heat index by 0.1 per level.",
-    cost: 200,
+    cost: 300,
+    costScaling: 1.6,
     maxLevel: 5,
     group: "how",
+    groupLabel: "Ride Upgrades",
     icon: "⛱️",
     apply: (state, level) => ({
       ...(state as AmusementParkState),
@@ -199,9 +223,11 @@ export const AMUSEMENT_PARK_UPGRADES: UpgradeDef[] = [
     id: "marketing-blitz",
     label: "Marketing Blitz",
     description: "Increases arrival rate by ×1.5 per level.",
-    cost: 300,
+    cost: 500,
+    costScaling: 1.8,
     maxLevel: 3,
     group: "how",
+    groupLabel: "Ride Upgrades",
     icon: "📢",
     apply: (state, level) => ({
       ...(state as AmusementParkState),
@@ -211,12 +237,6 @@ export const AMUSEMENT_PARK_UPGRADES: UpgradeDef[] = [
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────
-
-export function getOwnedUpgradeInstances(
-  ownedIds: string[] | undefined
-): UpgradeInstance[] {
-  return (ownedIds ?? []).map((id) => ({ id, level: 1 }));
-}
 
 export function getActiveUpgradeIds(state: AmusementParkState): string[] {
   return state.ownedUpgradeIds.filter((id) => {

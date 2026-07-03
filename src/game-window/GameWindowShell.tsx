@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import type { MouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { MiniGamePlugin, PluginComponentProps } from "@/engine/types";
-import { useHubStore } from "@/store/hubStore";
+import { useHubStore, startHubStateSync } from "@/store/hubStore";
 import { saveGame, loadGame } from "@/engine/saveLoad";
-import { broadcastTick, emitGoldEarned, emitCrystalEarned, emitWindowClosed } from "@/engine/eventBus";
+import { broadcastTick, emitGoldEarned, emitCrystalEarned, emitArtifactEarned, emitWindowClosed } from "@/engine/eventBus";
 import { PLUGIN_LIMITS } from "@/engine/pluginValidation";
 import { GameTicker } from "@/engine/ticker";
-import { canPurchaseUpgrade, purchaseUpgrade } from "@/engine/upgradeSystem";
+import { canPurchaseUpgrade, purchaseUpgrade, getOwnedInstances, getUpgradeCost, getUpgradeLevel } from "@/engine/upgradeSystem";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 
 interface Props {
@@ -30,8 +30,11 @@ export function GameWindowShell({ plugin }: Props) {
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { goldBalanceRef.current = goldBalance; }, [goldBalance]);
 
-  // Sync gold balance from hub.json on mount (hub may have broadcast before we started listening)
+  // Sync gold balance on mount, then keep it live. The hub credits gold this
+  // window earns; without the subscription our balance would freeze at the
+  // mount value and earned upgrades would read as unaffordable.
   useEffect(() => {
+    startHubStateSync();
     useHubStore.getState().hydrate();
   }, []);
 
@@ -52,7 +55,7 @@ export function GameWindowShell({ plugin }: Props) {
     if (!loaded) return;
 
     const ticker = new GameTicker((deltaMs) => {
-      const { next, goldEarned, crystalsEarned } = plugin.tick(stateRef.current, deltaMs);
+      const { next, goldEarned, crystalsEarned, artifactId } = plugin.tick(stateRef.current, deltaMs);
       stateRef.current = next;
       setState(next);
       broadcastTick(plugin.id, next);
@@ -61,6 +64,9 @@ export function GameWindowShell({ plugin }: Props) {
       }
       if (crystalsEarned > 0) {
         emitCrystalEarned(plugin.id);
+      }
+      if (artifactId) {
+        emitArtifactEarned(plugin.id, `${plugin.id}:${artifactId}`, 1);
       }
     });
 
@@ -128,15 +134,13 @@ export function GameWindowShell({ plugin }: Props) {
     setState(applied);
   }
 
-  function handleUpgradePurchase(upgradeId: string) {
+  async function handleUpgradePurchase(upgradeId: string) {
     const def = plugin.upgrades.find((u) => u.id === upgradeId);
     if (!def) return;
 
     const current = stateRef.current as StateWithUpgrades;
-    const ownedInstances = (current.ownedUpgradeIds ?? []).map((id) => ({
-      id,
-      level: 1,
-    }));
+    const ownedIds = current.ownedUpgradeIds ?? [];
+    const ownedInstances = getOwnedInstances(ownedIds);
 
     if (
       !canPurchaseUpgrade(
@@ -149,14 +153,18 @@ export function GameWindowShell({ plugin }: Props) {
       return;
     }
 
-    const success = useHubStore.getState().spendGold(def.cost);
+    // spendGold is async (round-trips to the Rust ledger) and can reject if the
+    // balance moved since the affordability check — don't apply the upgrade unless
+    // the spend actually succeeds.
+    const cost = getUpgradeCost(def, getUpgradeLevel(ownedInstances, upgradeId));
+    const success = await useHubStore.getState().spendGold(cost);
     if (!success) return;
 
-    // Update owned list then apply the upgrade's effect
-    const newInstances = purchaseUpgrade(ownedInstances, upgradeId);
-    const newOwnedIds = newInstances.map((u) => u.id);
+    // Apply onto the latest state — ticks may have advanced it during the spend.
+    const latest = stateRef.current as StateWithUpgrades;
+    const newOwnedIds = purchaseUpgrade(latest.ownedUpgradeIds ?? ownedIds, upgradeId);
     const withNewUpgrade = {
-      ...(current as object),
+      ...(latest as object),
       ownedUpgradeIds: newOwnedIds,
     };
     const applied = def.apply(withNewUpgrade, 1);

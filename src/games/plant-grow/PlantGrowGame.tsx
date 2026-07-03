@@ -1,6 +1,7 @@
 import { ProgressBar } from "@/components/ProgressBar";
 import { UpgradePanel } from "@/components/UpgradePanel";
 import { formatGold } from "@/engine/currency";
+import { getOwnedInstances } from "@/engine/upgradeSystem";
 import type { PluginComponentProps } from "@/engine/types";
 import {
   type PlantGrowState,
@@ -124,7 +125,7 @@ export function PlantGrowGame({ state: rawState, onUpgradePurchase, onSelectUpgr
       <div className="flex-1 overflow-auto px-4 py-3">
         <UpgradePanel
           upgrades={PLANT_GROW_UPGRADES}
-          owned={state.ownedUpgradeIds.map((id) => ({ id, level: 1 }))}
+          owned={getOwnedInstances(state.ownedUpgradeIds)}
           onPurchase={onUpgradePurchase}
           onSelect={onSelectUpgrade}
           activeUpgradeIds={getActiveUpgradeIds(state)}

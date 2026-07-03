@@ -7,8 +7,8 @@ import type { UpgradeDef, GameVariant } from "@/engine/types";
 
 export const VARIANTS: GameVariant[] = [
   { id: "ryegrass", label: "Ryegrass", emoji: "🌱", baseDurationSeconds: 90, goldPerCompletion: 6, isHardMode: false },
-  { id: "sunflower", label: "Sunflower", emoji: "🌻", baseDurationSeconds: 360, goldPerCompletion: 22, isHardMode: false },
-  { id: "rose", label: "Rose Bush", emoji: "🌹", baseDurationSeconds: 1200, goldPerCompletion: 75, isHardMode: false },
+  { id: "sunflower", label: "Sunflower", emoji: "🌻", baseDurationSeconds: 900, goldPerCompletion: 22, isHardMode: false },
+  { id: "rose", label: "Rose Bush", emoji: "🌹", baseDurationSeconds: 7200, goldPerCompletion: 75, isHardMode: false },
   // Hard mode: an oak from sapling. 2-day base growth → 1 💎.
   { id: "oak", label: "Oak Sapling", emoji: "🌳", baseDurationSeconds: 172_800, goldPerCompletion: 500, isHardMode: true },
 ];
@@ -106,7 +106,7 @@ export function getTimeRemainingSeconds(state: PlantGrowState): number {
 export function tick(
   state: PlantGrowState,
   deltaMs: number
-): { next: PlantGrowState; goldEarned: number; crystalsEarned: number } {
+): { next: PlantGrowState; goldEarned: number; crystalsEarned: number; artifactId?: string } {
   if (state.isComplete) return { next: state, goldEarned: 0, crystalsEarned: 0 };
 
   const rate = getRatePerSecond(state);
@@ -126,6 +126,7 @@ export function tick(
       },
       goldEarned: variant.goldPerCompletion,
       crystalsEarned: variant.isHardMode ? 1 : 0,
+      artifactId: variant.id,
     };
   }
 
@@ -139,21 +140,30 @@ export function reset(state: PlantGrowState): PlantGrowState {
 export function calculateOfflineProgress(
   state: PlantGrowState,
   nowMs: number
-): { state: PlantGrowState; offlineGoldEarned: number; offlineCrystalsEarned: number } {
+): {
+  state: PlantGrowState;
+  offlineGoldEarned: number;
+  offlineCrystalsEarned: number;
+  /** Bare artifact id → count minted while away (hoard model, aggregated). */
+  offlineArtifacts: Record<string, number>;
+} {
   const offlineMs = Math.min(nowMs - state.lastSaveAt, 8 * 60 * 60 * 1000);
-  if (offlineMs <= 0) return { state, offlineGoldEarned: 0, offlineCrystalsEarned: 0 };
+  if (offlineMs <= 0)
+    return { state, offlineGoldEarned: 0, offlineCrystalsEarned: 0, offlineArtifacts: {} };
 
   let current = state;
   let totalGold = 0;
   let totalCrystals = 0;
+  const artifacts: Record<string, number> = {};
   let remaining = offlineMs;
   const CHUNK_MS = 60_000;
 
   while (remaining > 0) {
     const delta = Math.min(remaining, CHUNK_MS);
-    const { next, goldEarned, crystalsEarned } = tick(current, delta);
+    const { next, goldEarned, crystalsEarned, artifactId } = tick(current, delta);
     totalGold += goldEarned;
     totalCrystals += crystalsEarned;
+    if (artifactId) artifacts[artifactId] = (artifacts[artifactId] ?? 0) + 1;
     current = next.isComplete ? reset(next) : next;
     remaining -= delta;
   }
@@ -164,6 +174,7 @@ export function calculateOfflineProgress(
     state: { ...current, lastSaveAt: nowMs },
     offlineGoldEarned: totalGold,
     offlineCrystalsEarned: totalCrystals,
+    offlineArtifacts: artifacts,
   };
 }
 
@@ -181,6 +192,7 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   {
     id: "what-ryegrass",
     group: "what",
+    groupLabel: "Plant",
     label: "Ryegrass",
     description: "It's grass. It grows. Quickly.",
     cost: 0,
@@ -190,9 +202,10 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   {
     id: "what-sunflower",
     group: "what",
+    groupLabel: "Plant",
     label: "Sunflower",
     description: "Tall, cheerful, a bit more patience",
-    cost: 40,
+    cost: 350,
     maxLevel: 1,
     requires: ["what-ryegrass"],
     apply: (s) => selectVariant(s, "sunflower"),
@@ -200,9 +213,10 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   {
     id: "what-rose",
     group: "what",
+    groupLabel: "Plant",
     label: "Rose Bush",
     description: "Slow to bloom, worth more",
-    cost: 150,
+    cost: 2000,
     maxLevel: 1,
     requires: ["what-sunflower"],
     apply: (s) => selectVariant(s, "rose"),
@@ -210,9 +224,10 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   {
     id: "what-oak",
     group: "what",
+    groupLabel: "Plant",
     label: "Oak Sapling 💎",
     description: "From acorn to tree — a 2-day grow, awards 1 crystal",
-    cost: 600,
+    cost: 8000,
     maxLevel: 1,
     requires: ["what-rose", "how-greenhouse"],
     apply: (s) => selectVariant(s, "oak"),
@@ -222,6 +237,7 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   {
     id: "how-windowsill",
     group: "how",
+    groupLabel: "Growing Conditions",
     label: "Windowsill",
     description: "A bit of sun — 1×",
     cost: 0,
@@ -231,9 +247,10 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   {
     id: "how-watering",
     group: "how",
+    groupLabel: "Growing Conditions",
     label: "Daily Watering",
     description: "Keep it hydrated — 3×",
-    cost: 50,
+    cost: 400,
     maxLevel: 1,
     requires: ["how-windowsill"],
     apply: (s) => ({ ...(s as PlantGrowState), conditionMultiplier: 3.0 }),
@@ -241,9 +258,10 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   {
     id: "how-fertilizer",
     group: "how",
+    groupLabel: "Growing Conditions",
     label: "Fertilizer",
     description: "Feed the roots — 8×",
-    cost: 200,
+    cost: 2500,
     maxLevel: 1,
     requires: ["how-watering"],
     apply: (s) => ({ ...(s as PlantGrowState), conditionMultiplier: 8.0 }),
@@ -251,9 +269,10 @@ export const PLANT_GROW_UPGRADES: UpgradeDef[] = [
   {
     id: "how-greenhouse",
     group: "how",
+    groupLabel: "Growing Conditions",
     label: "Greenhouse",
     description: "Perfect climate — 20× (unlocks oak)",
-    cost: 600,
+    cost: 9000,
     maxLevel: 1,
     requires: ["how-fertilizer"],
     apply: (s) => ({ ...(s as PlantGrowState), conditionMultiplier: 20.0 }),

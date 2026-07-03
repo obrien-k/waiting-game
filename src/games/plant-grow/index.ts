@@ -1,4 +1,4 @@
-import type { MiniGamePlugin } from "@/engine/types";
+import type { ArtifactCatalogEntry, MiniGamePlugin } from "@/engine/types";
 import { assertPlugin } from "@/engine/pluginValidation";
 import {
   getInitialState,
@@ -12,8 +12,24 @@ import {
 } from "./plantGrowEngine";
 import { PlantGrowGame } from "./PlantGrowGame";
 import { PlantGrowCardThumbnail } from "./CardThumbnail";
-import { emitGoldEarned, emitCrystalEarned, emitOfflineMessage } from "@/engine/eventBus";
+import {
+  emitGoldEarned,
+  emitCrystalEarned,
+  emitOfflineMessage,
+  emitArtifactEarned,
+} from "@/engine/eventBus";
 import { formatGold } from "@/engine/currency";
+
+// One flora collectible per species. Keys are fully-qualified so the hub can
+// merge catalogs across games. Descriptions mirror each variant's flavor.
+const ARTIFACT_CATALOG: ArtifactCatalogEntry[] = VARIANTS.map((v) => ({
+  id: `plant-grow:${v.id}`,
+  gameId: "plant-grow",
+  category: "flora",
+  name: v.label,
+  emoji: v.emoji ?? "🌱",
+  description: `A fully grown ${v.label.toLowerCase()}.`,
+}));
 
 const plantGrowPlugin: MiniGamePlugin = {
   id: "plant-grow",
@@ -26,13 +42,19 @@ const plantGrowPlugin: MiniGamePlugin = {
 
   hydrateState(raw) {
     const base = hydrateState(raw);
-    const { state: progressed, offlineGoldEarned, offlineCrystalsEarned } =
+    const { state: progressed, offlineGoldEarned, offlineCrystalsEarned, offlineArtifacts } =
       calculateOfflineProgress(base, Date.now());
 
-    if (offlineGoldEarned > 0 || offlineCrystalsEarned > 0) {
+    const offlineArtifactEntries = Object.entries(offlineArtifacts);
+    if (offlineGoldEarned > 0 || offlineCrystalsEarned > 0 || offlineArtifactEntries.length > 0) {
       Promise.resolve().then(() => {
         if (offlineGoldEarned > 0) emitGoldEarned("plant-grow", offlineGoldEarned);
         if (offlineCrystalsEarned > 0) emitCrystalEarned("plant-grow");
+        // Batched: one emit per artifact type, not one per completion, so a long
+        // offline window doesn't fire thousands of events.
+        for (const [bareId, count] of offlineArtifactEntries) {
+          emitArtifactEarned("plant-grow", `plant-grow:${bareId}`, count);
+        }
         const crystalNote = offlineCrystalsEarned > 0 ? ` +${offlineCrystalsEarned} 💎` : "";
         emitOfflineMessage(
           `Your garden grew ◈ ${formatGold(offlineGoldEarned)} while you were away!${crystalNote}`
@@ -49,6 +71,7 @@ const plantGrowPlugin: MiniGamePlugin = {
   Component: PlantGrowGame,
   CardThumbnail: PlantGrowCardThumbnail,
   upgrades: PLANT_GROW_UPGRADES,
+  artifactCatalog: ARTIFACT_CATALOG,
 };
 
 assertPlugin(plantGrowPlugin);

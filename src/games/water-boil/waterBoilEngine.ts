@@ -1,4 +1,4 @@
-import type { UpgradeDef, UpgradeInstance } from "@/engine/types";
+import type { UpgradeDef } from "@/engine/types";
 
 export interface WaterBoilState {
   currentTemp: number;       // °C
@@ -147,6 +147,7 @@ export const WATER_BOIL_UPGRADES: UpgradeDef[] = [
   {
     id: "pot-small",
     group: "pot",
+    groupLabel: "Pot Size",
     label: "Small Pot",
     description: "0.5L — your trusty saucepan",
     cost: 0,
@@ -156,9 +157,10 @@ export const WATER_BOIL_UPGRADES: UpgradeDef[] = [
   {
     id: "pot-medium",
     group: "pot",
+    groupLabel: "Pot Size",
     label: "Medium Pot",
     description: "1L — 4× the gold per boil",
-    cost: 50,
+    cost: 400,
     maxLevel: 1,
     requires: ["pot-small"],
     apply: (s) => selectPot(s, 1.0),
@@ -166,9 +168,10 @@ export const WATER_BOIL_UPGRADES: UpgradeDef[] = [
   {
     id: "pot-large",
     group: "pot",
+    groupLabel: "Pot Size",
     label: "Large Pot",
     description: "2L — serious boiling operation",
-    cost: 200,
+    cost: 3000,
     maxLevel: 1,
     requires: ["pot-medium"],
     apply: (s) => selectPot(s, 2.0),
@@ -176,6 +179,7 @@ export const WATER_BOIL_UPGRADES: UpgradeDef[] = [
   {
     id: "heat-candle",
     group: "heater",
+    groupLabel: "Heat Source",
     label: "Candle",
     description: "50W — slow but it works",
     cost: 0,
@@ -185,9 +189,10 @@ export const WATER_BOIL_UPGRADES: UpgradeDef[] = [
   {
     id: "heat-hotplate",
     group: "heater",
+    groupLabel: "Heat Source",
     label: "Hot Plate",
     description: "500W — a real step up from the candle",
-    cost: 80,
+    cost: 600,
     maxLevel: 1,
     requires: ["heat-candle"],
     apply: (s) => ({ ...(s as WaterBoilState), heaterWatts: 500 }),
@@ -195,9 +200,10 @@ export const WATER_BOIL_UPGRADES: UpgradeDef[] = [
   {
     id: "heat-electric",
     group: "heater",
+    groupLabel: "Heat Source",
     label: "Electric Hob",
     description: "1000W — steady kitchen heat",
-    cost: 300,
+    cost: 3500,
     maxLevel: 1,
     requires: ["heat-hotplate"],
     apply: (s) => ({ ...(s as WaterBoilState), heaterWatts: 1000 }),
@@ -205,9 +211,10 @@ export const WATER_BOIL_UPGRADES: UpgradeDef[] = [
   {
     id: "heat-induction",
     group: "heater",
+    groupLabel: "Heat Source",
     label: "Induction Cooktop",
     description: "3000W — efficient & precise",
-    cost: 1200,
+    cost: 15000,
     maxLevel: 1,
     requires: ["heat-electric"],
     apply: (s) => ({ ...(s as WaterBoilState), heaterWatts: 3000 }),
@@ -215,20 +222,15 @@ export const WATER_BOIL_UPGRADES: UpgradeDef[] = [
   {
     id: "heat-gas",
     group: "heater",
+    groupLabel: "Heat Source",
     label: "Gas Stove",
     description: "3500W — now we're cooking",
-    cost: 2500,
+    cost: 50000,
     maxLevel: 1,
     requires: ["heat-induction"],
     apply: (s) => ({ ...(s as WaterBoilState), heaterWatts: 3500 }),
   },
 ];
-
-export function getOwnedUpgradeInstances(
-  ownedIds: string[]
-): UpgradeInstance[] {
-  return ownedIds.map((id) => ({ id, level: 1 }));
-}
 
 const POT_BY_VOLUME: Record<number, string> = {
   0.5: "pot-small",

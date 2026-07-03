@@ -86,6 +86,35 @@ export async function onCrystalEarned(
   return unlisten;
 }
 
+export interface ArtifactEarnedPayload {
+  gameId: string;
+  /** Fully-qualified artifact type id, e.g. "plant-grow:oak". */
+  artifactId: string;
+  count: number;
+}
+
+export async function emitArtifactEarned(
+  gameId: string,
+  artifactId: string,
+  count = 1
+) {
+  await emit("artifact-earned", {
+    gameId,
+    artifactId,
+    count,
+  } satisfies ArtifactEarnedPayload);
+}
+
+export async function onArtifactEarned(
+  cb: (payload: ArtifactEarnedPayload) => void
+): Promise<() => void> {
+  const unlisten = await listen<ArtifactEarnedPayload>(
+    "artifact-earned",
+    (event) => cb(event.payload)
+  );
+  return unlisten;
+}
+
 export async function emitWindowClosed(gameId: string) {
   await emit("window-closed", { gameId });
 }

@@ -8,8 +8,15 @@ export const PLUGIN_LIMITS = {
   hardModeDuration: { min: 172_800, max: 2_592_000 },
   /** "How" upgrade speed ceiling across all games */
   conditionMultiplierMax: 500,
-  /** Per-tick gold ceiling enforced by shells regardless of engine output */
-  goldPerTickMax: 50,
+  /**
+   * Per-tick gold ceiling enforced by shells regardless of engine output. Must
+   * be ≥ goldPerCompletion.max: a completion pays its full lump sum in a single
+   * tick, so a lower ceiling silently truncated legitimate payouts on the live
+   * path (oak paid 50 not 500) while the offline path — unclamped — paid full.
+   * Set to the completion ceiling so online matches offline; still a backstop
+   * against a plugin returning arbitrary runaway gold per tick.
+   */
+  goldPerTickMax: 500,
 } as const;
 
 type ValidationResult = { ok: true } | { ok: false; errors: string[] };

@@ -16,6 +16,18 @@ const BUILTIN_PLUGINS: MiniGamePlugin[] = [
   ...(import.meta.env.DEV ? [devInstantPlugin, devPaintPlugin, devPlantPlugin] : []),
 ];
 
+// Gold cost to unlock a game's card on the hub. 0 = always unlocked.
+// water-boil is the free starter; dev-only games never gate behind gold.
+export const UNLOCK_COSTS: Record<string, number> = {
+  "water-boil": 0,
+  "plant-grow": 1000,
+  "paint-dry": 5000,
+  "amusement-park": 15000,
+  "dev-instant": 0,
+  "dev-paint": 0,
+  "dev-plant": 0,
+};
+
 export interface GameRegistryState {
   plugins: Record<string, MiniGamePlugin>;
 }

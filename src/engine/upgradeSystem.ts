@@ -11,6 +11,22 @@ export function isUpgradeOwned(upgrades: UpgradeInstance[], id: string): boolean
   return getUpgradeLevel(upgrades, id) > 0;
 }
 
+/**
+ * Derives owned upgrade instances (id + level) from the persisted flat id
+ * list. Levels aren't stored separately — a repeatable upgrade's level is
+ * however many times its id appears in `ownedIds` (see `purchaseUpgrade`).
+ */
+export function getOwnedInstances(ownedIds: string[]): UpgradeInstance[] {
+  const levels = new Map<string, number>();
+  for (const id of ownedIds) levels.set(id, (levels.get(id) ?? 0) + 1);
+  return Array.from(levels.entries()).map(([id, level]) => ({ id, level }));
+}
+
+/** Cost to purchase the given upgrade's next level (0-indexed): cost × scaling^level. */
+export function getUpgradeCost(def: UpgradeDef, level: number): number {
+  return Math.round(def.cost * (def.costScaling ?? 1) ** level);
+}
+
 export function canPurchaseUpgrade(
   defs: UpgradeDef[],
   owned: UpgradeInstance[],
@@ -29,18 +45,12 @@ export function canPurchaseUpgrade(
     }
   }
 
-  return goldBalance >= def.cost;
+  return goldBalance >= getUpgradeCost(def, currentLevel);
 }
 
-export function purchaseUpgrade(
-  owned: UpgradeInstance[],
-  id: string
-): UpgradeInstance[] {
-  const existing = owned.find((u) => u.id === id);
-  if (existing) {
-    return owned.map((u) => (u.id === id ? { ...u, level: u.level + 1 } : u));
-  }
-  return [...owned, { id, level: 1 }];
+/** Records a purchase by appending another copy of `id` to the flat owned-id list. */
+export function purchaseUpgrade(ownedIds: string[], id: string): string[] {
+  return [...ownedIds, id];
 }
 
 export function applyUpgrades<T>(

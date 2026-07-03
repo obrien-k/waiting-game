@@ -2,12 +2,12 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { UpgradePanel } from "@/components/UpgradePanel";
 import { KettleVisual } from "./KettleVisual";
 import { formatGold } from "@/engine/currency";
+import { getOwnedInstances } from "@/engine/upgradeSystem";
 import type { PluginComponentProps } from "@/engine/types";
 import {
   type WaterBoilState,
   WATER_BOIL_UPGRADES,
   getTimeRemainingSeconds,
-  getOwnedUpgradeInstances,
   getActiveUpgradeIds,
   goldPerBoil,
 } from "./waterBoilEngine";
@@ -30,7 +30,7 @@ export function WaterBoilGame({ state: rawState, onUpgradePurchase, onSelectUpgr
   const state = rawState as WaterBoilState;
   const fraction = (state.currentTemp - 20) / 80;
   const timeLeft = getTimeRemainingSeconds(state);
-  const ownedInstances = getOwnedUpgradeInstances(state.ownedUpgradeIds);
+  const ownedInstances = getOwnedInstances(state.ownedUpgradeIds);
 
   return (
     <div className="flex flex-col h-full overflow-hidden text-white">

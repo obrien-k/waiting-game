@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import type { MiniGamePlugin, PluginComponentProps } from "@/engine/types";
 import { useHubStore } from "@/store/hubStore";
 import { saveGame, loadGame } from "@/engine/saveLoad";
-import { broadcastTick, emitGoldEarned, emitCrystalEarned } from "@/engine/eventBus";
+import { broadcastTick, emitGoldEarned, emitCrystalEarned, emitArtifactEarned } from "@/engine/eventBus";
 import { PLUGIN_LIMITS } from "@/engine/pluginValidation";
 import { GameTicker } from "@/engine/ticker";
-import { canPurchaseUpgrade, purchaseUpgrade } from "@/engine/upgradeSystem";
+import { canPurchaseUpgrade, purchaseUpgrade, getOwnedInstances, getUpgradeCost, getUpgradeLevel } from "@/engine/upgradeSystem";
 
 interface Props {
   plugin: MiniGamePlugin;
@@ -26,9 +26,11 @@ export function InlineGameShell({ plugin }: Props) {
   useEffect(() => { goldBalanceRef.current = goldBalance; }, [goldBalance]);
 
   useEffect(() => {
-    loadGame<unknown>(plugin.id).then((saved) => {
+    loadGame<unknown>(plugin.id).then(async (saved) => {
       if (saved) {
-        const hydrated = plugin.hydrateState(saved);
+        // hydrateState may be async (e.g. amusement-park computes offline
+        // progress in Rust) — awaiting keeps `state` from becoming a Promise.
+        const hydrated = await Promise.resolve(plugin.hydrateState(saved));
         setState(hydrated);
         stateRef.current = hydrated;
       }
@@ -39,12 +41,13 @@ export function InlineGameShell({ plugin }: Props) {
   useEffect(() => {
     if (!loaded) return;
     const ticker = new GameTicker((deltaMs) => {
-      const { next, goldEarned, crystalsEarned } = plugin.tick(stateRef.current, deltaMs);
+      const { next, goldEarned, crystalsEarned, artifactId } = plugin.tick(stateRef.current, deltaMs);
       stateRef.current = next;
       setState(next);
       broadcastTick(plugin.id, next);
       if (goldEarned > 0) emitGoldEarned(plugin.id, Math.min(goldEarned, PLUGIN_LIMITS.goldPerTickMax));
       if (crystalsEarned > 0) emitCrystalEarned(plugin.id);
+      if (artifactId) emitArtifactEarned(plugin.id, `${plugin.id}:${artifactId}`, 1);
     });
     ticker.start();
     return () => ticker.stop();
@@ -78,17 +81,21 @@ export function InlineGameShell({ plugin }: Props) {
     setState(applied);
   }
 
-  function handleUpgradePurchase(upgradeId: string) {
+  async function handleUpgradePurchase(upgradeId: string) {
     const def = plugin.upgrades.find((u) => u.id === upgradeId);
     if (!def) return;
     const current = stateRef.current as StateWithUpgrades;
-    const ownedInstances = (current.ownedUpgradeIds ?? []).map((id) => ({ id, level: 1 }));
+    const ownedIds = current.ownedUpgradeIds ?? [];
+    const ownedInstances = getOwnedInstances(ownedIds);
     if (!canPurchaseUpgrade(plugin.upgrades, ownedInstances, upgradeId, goldBalanceRef.current)) return;
-    const success = useHubStore.getState().spendGold(def.cost);
+    // spendGold is async and may reject — only apply the upgrade if it succeeds.
+    const cost = getUpgradeCost(def, getUpgradeLevel(ownedInstances, upgradeId));
+    const success = await useHubStore.getState().spendGold(cost);
     if (!success) return;
-    const newInstances = purchaseUpgrade(ownedInstances, upgradeId);
-    const newOwnedIds = newInstances.map((u) => u.id);
-    const withNewUpgrade = { ...(current as object), ownedUpgradeIds: newOwnedIds };
+    // Apply onto the latest state — ticks may have advanced it during the spend.
+    const latest = stateRef.current as StateWithUpgrades;
+    const newOwnedIds = purchaseUpgrade(latest.ownedUpgradeIds ?? ownedIds, upgradeId);
+    const withNewUpgrade = { ...(latest as object), ownedUpgradeIds: newOwnedIds };
     const applied = def.apply(withNewUpgrade, 1);
     stateRef.current = applied;
     setState(applied);
