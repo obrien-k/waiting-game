@@ -1,6 +1,6 @@
 # ADR 0001: Workshop plugin sandbox & permission model
 
-- **Status:** Proposed (open decision — blocks Workshop launch)
+- **Status:** Superseded by [ADR 0002](./0002-two-tier-plugin-sandbox.md)
 - **Date:** 2026-06-27
 - **Deciders:** @obrien-k
 
@@ -28,11 +28,9 @@ installs community content.
 
 ## Decision
 
-**Open — not yet decided.** This ADR records the constraint and the option space so
-the decision is made deliberately before any dynamic plugin loading lands, rather
-than defaulted into by shipping `gameRegistry.ts` scanning.
-
-No dynamic/external plugin loading may merge until this ADR moves to *Accepted*.
+**Superseded.** [ADR 0002](./0002-two-tier-plugin-sandbox.md) resolves this by combining
+options 2 and 3 below into a two-tier trust model rather than picking a single option
+for all plugins. See ADR 0002 for the accepted decision.
 
 ## Options under consideration
 
