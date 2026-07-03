@@ -26,3 +26,6 @@ steam_api64.dylib
 libsteam_api.so
 steam_appid.txt
 # Set STEAM_SDK_LOCATION=/path/to/steamworks_sdk before building with --features steam
+
+# Generated LLM source dump (scripts/pack-for-llm.sh)
+waiting-game-source.txt
