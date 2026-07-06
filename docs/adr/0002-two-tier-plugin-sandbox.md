@@ -96,6 +96,38 @@ changes. Until then, external = sandboxed, unconditionally.
 | Asset protocol | `plugin://localhost/<id>/<path>` served by `src-tauri/src/plugin_protocol.rs`, scoped per-plugin with lexical `..` rejection + a canonicalize symlink guard, and its own near-total content CSP. |
 | Manifest schema | `PluginManifest` gains `trust` and `permissions` (`needsGoldAPI`, `needsArtifactLedger`); `src/engine/manifest.ts` parses/validates untrusted manifests into `ExternalPlugin`. |
 
+### Capability audit (`src-tauri/capabilities/game-window.json`)
+
+For the record, since ADR 0001 flagged capability inheritance as a blocker and
+this ADR resolves it differently than ADR 0001 proposed. The `game-window`
+capability (matches all `game-*` windows) grants:
+
+| Permission | Scope | Notes |
+|---|---|---|
+| `core:default` | Baseline safe set | — |
+| `core:window:allow-set-always-on-top` / `-close` / `-destroy` / `-start-dragging` | This window | Pop-out chrome (pin, close, drag). |
+| `core:event:allow-emit` / `-listen` | App-wide event bus | How shells credit gold/crystals/artifacts to the hub. |
+| `fs:allow-app-read-recursive` | **All of `AppData`** | Read every game's save + `hub.json`. |
+| `fs:allow-app-write-recursive` | **All of `AppData`** | Write every game's save + `hub.json`. |
+| `fs:allow-app-meta-recursive` | **All of `AppData`** | Metadata/stat. |
+
+The `fs:*-recursive` and `event:allow-emit` grants are broad — a plugin running
+in this webview could read/overwrite any game's save and emit any event.
+
+**This is accepted, by design, and left unchanged.** These capabilities are only
+ever inherited by **Tier-1 (trusted, allowlisted built-in)** plugins, which run
+natively in the webview. Tier 1 *is* full trust — the built-ins already share
+`hub.json` and each other's save directory as normal operation.
+
+ADR 0001 proposed narrowing this into a restricted per-plugin capability set
+(its option 1). This ADR **rejects that path**: Tier-2 (untrusted) plugins never
+inherit the `game-window` set at all — they run in a sandboxed, opaque-origin
+iframe with no `window.__TAURI__`, so no Tauri capability (broad or narrow) is
+reachable from them. Restricting the capability set would harden a surface that
+untrusted code cannot touch, while adding friction for the trusted natives that
+legitimately need it. The isolation boundary is the iframe, not the capability
+file.
+
 ### Enforcement, top to bottom (Tier 2)
 
 1. **Source identity** — only messages from the plugin's own `iframe.contentWindow` are considered.
