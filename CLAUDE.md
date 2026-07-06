@@ -166,7 +166,24 @@ A `GameVariant` with `isHardMode: true`:
 
 ### Steam Workshop / external plugin loading
 
-The manifest format in `src/games/_template/manifest.json` is already compatible with runtime loading. When the workshop ships, `gameRegistry.ts` will scan `AppData/plugins/*/manifest.json` and dynamically import each bundle instead of statically importing them. No other files need to change. Don't alter the manifest schema without considering this path.
+The manifest format in `src/games/_template/manifest.json` is already compatible with runtime loading. When the workshop ships, `gameRegistry.ts` will scan the per-plugin `manifest.json` files under `AppData/plugins` (via `parseManifest` in `src/engine/manifest.ts`) and append the resulting `ExternalPlugin`s to `BUILTIN_PLUGINS`. No other files need to change. Don't alter the manifest schema without considering this path.
+
+### Two-tier plugin sandbox (ADR 0002)
+
+Every registry entry is a `RegisteredPlugin` = native `MiniGamePlugin` **or** `ExternalPlugin` (`kind: "external"`). `resolveTrustTier` (`src/engine/pluginTrust.ts`) decides the path; both `GameWindowApp` and the hub big-screen branch on it.
+
+- **Tier 1 (trusted, allowlisted built-ins):** native React in `GameWindowShell` / `InlineGameShell`, full `game-window` capabilities.
+- **Tier 2 (untrusted, everything dynamic):** `IframeGameShell` → `<iframe sandbox="allow-scripts">`. No `window.__TAURI__`, no fs. Privileged actions go through the `postMessage` broker.
+
+Load-bearing rules — don't regress these:
+
+- **Authenticate by `event.source`, never `event.origin`.** A sandboxed frame's origin is the string `"null"`. The broker only acts on messages whose `source === iframe.contentWindow`.
+- **Broker is pure and lives in `src/engine/iframeBroker.ts`.** `IframeGameShell` is just wiring. All validation/clamping/permission-gating is there, unit-tested — keep it that way so the attack surface stays testable without a DOM.
+- **Permissions are deny-by-default.** A Tier-2 action whose manifest permission (`needsGoldAPI` / `needsArtifactLedger`) is absent is a hard rejection, never a silent no-op.
+- **Artifact ids are namespaced host-side.** The iframe sends a *bare* id; the broker prefixes `${pluginId}:`. A plugin structurally cannot mint another game's artifact.
+- **`plugin://` is the only asset channel for Tier 2.** Served by `src-tauri/src/plugin_protocol.rs`, scoped per-plugin. The path resolver (`resolve_plugin_asset_path`) rejects `..`/encoded-`..`/separators and canonicalizes to block symlink escape. Build URLs with `pluginAssetUrl` (`src/engine/pluginProtocol.ts`) — it handles the macOS/Linux (`plugin://localhost`) vs Windows (`http://plugin.localhost`) split.
+- **CSP lives in `tauri.conf.json`** (`security.csp` for prod, `security.devCsp` for Vite). `plugin:` is allowed only for `img`/`media`/`frame`, never `script-src`/`connect-src`. Don't loosen `script-src` past `'self'`.
+- The DEV-only `dev-sandbox` fixture is a Tier-2 `srcdoc` plugin that exercises this path (mirrors the other `[DEV]` fixtures; gated out of prod).
 
 ### Adding a new game
 

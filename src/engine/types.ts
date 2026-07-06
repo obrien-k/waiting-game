@@ -122,6 +122,18 @@ export interface CrystalLedger {
   count: number;
 }
 
+/**
+ * Broker permissions a Tier-2 (untrusted) plugin declares in its manifest. The
+ * broker denies any privileged action whose backing permission is absent, so an
+ * undeclared capability is a hard denial. See ADR 0002.
+ */
+export interface ManifestPermissions {
+  /** May earn gold via the postMessage broker. */
+  needsGoldAPI?: boolean;
+  /** May mint artifacts via the postMessage broker. */
+  needsArtifactLedger?: boolean;
+}
+
 export interface PluginManifest {
   id: string;
   name: string;
@@ -133,6 +145,15 @@ export interface PluginManifest {
   icon?: string;
   windowSize?: { width: number; height: number };
   tags?: string[];
+  /**
+   * Requested trust tier. Only `"trusted"` plugins on the host allowlist run
+   * natively; everything else (and the default) is sandboxed as Tier 2. A
+   * manifest asking for `"trusted"` is still gated by the allowlist — declaring
+   * it does not grant it. See `src/engine/pluginTrust.ts`.
+   */
+  trust?: "trusted" | "untrusted";
+  /** Broker permissions requested by a Tier-2 plugin. Absent ⇒ none granted. */
+  permissions?: ManifestPermissions;
 }
 
 export interface GoldLedger {

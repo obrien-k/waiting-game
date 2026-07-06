@@ -4,6 +4,8 @@ import { useGameRegistry, type GameRegistryState } from "@/store/gameRegistry";
 import { onOfflineMessage, onWindowClosed } from "@/engine/eventBus";
 import { listOpenGameIds } from "@/engine/windowManager";
 import { InlineGameShell } from "@/game-window/InlineGameShell";
+import { IframeGameShell } from "@/game-window/IframeGameShell";
+import { isExternalPlugin } from "@/engine/pluginTrust";
 import { GameGrid } from "./GameGrid";
 import { Garden } from "./Garden";
 import { GoldDisplay } from "@/components/GoldDisplay";
@@ -107,8 +109,12 @@ export function HubApp() {
           <div className="flex items-center justify-center h-full text-white/40">
             Loading…
           </div>
-        ) : isBigScreen ? (
-          <InlineGameShell plugin={focusedPlugin} />
+        ) : isBigScreen && focusedPlugin ? (
+          isExternalPlugin(focusedPlugin) ? (
+            <IframeGameShell plugin={focusedPlugin} isPopOut={false} />
+          ) : (
+            <InlineGameShell plugin={focusedPlugin} />
+          )
         ) : (
           <div className="p-6">
             <Garden />

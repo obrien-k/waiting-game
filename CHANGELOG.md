@@ -13,23 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Artifact ecosystem — the Garden** (Phase 1, plant-grow only). Completing a plant now mints a collectible flora artifact; the hub grows a **Garden** panel showing each species with a live `×count`, and not-yet-grown species as dimmed silhouettes. Hoard model — counts aggregate in a Rust `ArtifactLedger` so `hub.json` stays small. Rides the existing crystal-crediting path (game emits `artifact-earned` → hub-only listener credits → all windows mirror), so no `plugin.tick` signature change. Extensible: a game joins by declaring an `artifactCatalog` and returning `artifactId` from `tick` — no hub/Rust changes needed for the next category (fauna→Aquarium, …).
 - **Game unlocking** — cards are gated behind a gold cost (`UNLOCK_COSTS`: plant-grow 1,000 · paint-dry 5,000 · amusement-park 15,000; water-boil free) and unlocked via a Rust `unlock_game` command that debits gold atomically.
 - **Repeatable upgrades with cost scaling** — upgrades can now level up beyond one purchase, priced `cost × scaling^level`. Ownership is a flat id list; a level is derived by counting duplicates (`getOwnedInstances`), keeping saves format-stable.
+- **Two-tier plugin sandbox — implementation of [ADR 0002](docs/adr/0002-two-tier-plugin-sandbox.md)** (#3). Every registry entry is now a native `MiniGamePlugin` (Tier 1, allowlisted built-ins, full capabilities) or an `ExternalPlugin` (Tier 2, always sandboxed). Tier 2 renders in `<iframe sandbox="allow-scripts">` — no `window.__TAURI__`, no filesystem — and reaches privileged actions only through a `postMessage` broker (`src/engine/iframeBroker.ts`) that authenticates by message **source identity** (never the spoofable `"null"` origin), denies undeclared permissions, floors+clamps gold to `goldPerTickMax`, and namespaces minted artifacts under the plugin's own id. Assets are served by a new `plugin://` Tauri protocol (`src-tauri/src/plugin_protocol.rs`) scoped per-plugin with `..`/symlink escape blocked. Manifest schema gains `trust` + `permissions` (`needsGoldAPI`, `needsArtifactLedger`). Trust-tier assignment is a hardcoded allowlist today (signature check is the documented future path). A DEV-only `dev-sandbox` fixture exercises the Tier-2 path. The dynamic `AppData/plugins` loader remains deferred (parser + protocol are ready for it).
 
 ### Changed
 
-- **[ADR 0002](docs/adr/0002-two-tier-plugin-sandbox.md) accepted** — two-tier plugin trust model (staff-approved native vs community sandboxed iframe with a `postMessage` broker). Supersedes ADR 0001.
+- **[ADR 0002](docs/adr/0002-two-tier-plugin-sandbox.md) accepted _and implemented_** — two-tier plugin trust model (staff-approved native vs community sandboxed iframe with a `postMessage` broker). Supersedes ADR 0001.
 
 ### Fixed
 
 - **Gold no longer truncates on live completions.** The per-tick gold ceiling (`goldPerTickMax`) was 50 — below legitimate completion payouts — so watching a rose complete credited 50 instead of 75, and an oak 50 instead of 500, while the offline path paid full. Raised to the completion ceiling (500) so online matches offline; a regression test pins `goldPerTickMax ≥ goldPerCompletion.max`.
 - **Amusement Park: NaN queue counter / inert game** (#10, partial). `hydrateState` now runs saved state through `clampState`, healing a non-finite `queueLength` (a corrupt `null` save) back to a sane value, and `tick` re-clamps so one bad value can't propagate. (Residual: `totalServed`/`abandoned` aren't yet clamped — tracked on #10.)
 - **Async plugin hydration + crash containment** (#11) — `hydrateState` is awaited so state can't become a `Promise`, and a plugin that throws is contained rather than blanking its window.
+- **Real Content-Security-Policy** (#2). `security.csp` is no longer `null`: a strict production policy (`script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, `plugin:` only for `img`/`media`/`frame`) plus a Vite-friendly `security.devCsp`. Closes the open XSS→IPC surface ADR 0001/0002 flagged.
 
 ### Planned
 
 Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https://github.com/obrien-k/waiting-game/issues):
 
-- Real Content-Security-Policy (replace `security.csp = null`) before any external/Workshop content loads.
-- Workshop plugin sandbox / permission model — decision recorded in [ADR 0002](docs/adr/0002-two-tier-plugin-sandbox.md) (supersedes 0001); implementation pending (#3).
+- Dynamic `AppData/plugins` loader (remaining half of #3) — scan bundles and register them via `parseManifest`; the sandbox, broker, and `plugin://` protocol are already in place.
 - `steam` Cargo feature, optional `steamworks` dependency, and `src-tauri/src/steam/` skeleton.
 - `tauri-plugin-single-instance` for Steam relaunch / overlay.
 - Asset-location convention (`src/assets/` vs `src-tauri/resources/`).

@@ -4,7 +4,7 @@ import { useHubStore } from "@/store/hubStore";
 import { openGameWindow } from "@/engine/windowManager";
 import { onTickBroadcast } from "@/engine/eventBus";
 import { formatGold } from "@/engine/currency";
-import type { MiniGamePlugin } from "@/engine/types";
+import { isExternalPlugin, type RegisteredPlugin } from "@/engine/pluginTrust";
 
 interface Props {
   gameId: string;
@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function GameCard({ gameId, onFocus }: Props) {
-  const plugin = useGameRegistry((s: GameRegistryState) => s.plugins[gameId] as MiniGamePlugin | undefined);
+  const plugin = useGameRegistry((s: GameRegistryState) => s.plugins[gameId] as RegisteredPlugin | undefined);
   const isOpen = useHubStore((s) => s.openWindowIds.has(gameId));
   const setWindowOpen = useHubStore((s) => s.setWindowOpen);
   const isUnlocked = useHubStore((s) => s.unlockedGameIds.has(gameId));
@@ -68,7 +68,9 @@ export function GameCard({ gameId, onFocus }: Props) {
     );
   }
 
-  const Thumbnail = plugin.CardThumbnail;
+  // External (Tier-2) plugins have no host-side thumbnail component; they fall
+  // back to the ⏳ placeholder.
+  const Thumbnail = isExternalPlugin(plugin) ? undefined : plugin.CardThumbnail;
 
   return (
     <div className="relative h-48 rounded-xl bg-[var(--color-surface-raised)] border border-white/10 overflow-hidden flex flex-col hover:border-white/20 transition-colors group">

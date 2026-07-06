@@ -12,7 +12,7 @@ const EMPTY_ARTIFACT_LEDGER: ArtifactLedger = { entries: {} };
 // Built-in games available out of the box. Dev-only games are appended in dev.
 // Hydration unions this with saved installs so newly-shipped games always show.
 const DEFAULT_INSTALLED_GAME_IDS = import.meta.env.DEV
-  ? ["water-boil", "paint-dry", "plant-grow", "amusement-park", "dev-instant", "dev-paint", "dev-plant"]
+  ? ["water-boil", "paint-dry", "plant-grow", "amusement-park", "dev-instant", "dev-paint", "dev-plant", "dev-sandbox"]
   : ["water-boil", "paint-dry", "plant-grow", "amusement-park"];
 
 interface HubStateData {
