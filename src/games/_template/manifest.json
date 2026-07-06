@@ -5,5 +5,11 @@
   "description": "Something worth waiting for",
   "author": "Your Name",
   "minEngineVersion": "1.0.0",
+  "entry": "index.html",
+  "trust": "untrusted",
+  "permissions": {
+    "needsGoldAPI": true,
+    "needsArtifactLedger": false
+  },
   "tags": []
 }
