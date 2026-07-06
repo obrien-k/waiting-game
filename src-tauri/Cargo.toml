@@ -1,6 +1,6 @@
 [package]
 name = "waiting-game"
-version = "0.2.3"
+version = "0.3.0"
 description = "The Waiting Game — Idle Mini-Games Collection"
 authors = ["Kyle OBrien"]
 edition = "2021"

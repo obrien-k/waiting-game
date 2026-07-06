@@ -125,7 +125,7 @@ export function HubApp() {
 
       {!isBigScreen && (
         <footer className="px-6 py-2 text-xs text-white/20 border-t border-white/10">
-          The Waiting Game v0.2.3
+          The Waiting Game v0.3.0
         </footer>
       )}
     </div>

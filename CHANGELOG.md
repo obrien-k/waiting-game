@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+
+Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https://github.com/obrien-k/waiting-game/issues):
+
+- Dynamic `AppData/plugins` loader (remaining half of #3) — scan bundles and register them via `parseManifest`; the sandbox, broker, and `plugin://` protocol are already in place.
+- `steam` Cargo feature, optional `steamworks` dependency, and `src-tauri/src/steam/` skeleton.
+- `tauri-plugin-single-instance` for Steam relaunch / overlay.
+- Asset-location convention (`src/assets/` vs `src-tauri/resources/`).
+- Derive the UI version footer (`HubApp.tsx`) from the package manifest so it stops drifting on each release.
+
+## [0.3.0] - 2026-07-05
+
 ### Added
 
 - **Wait in Line for an Amusement Park** mini-game (#9) — fourth built-in. Unlike the completion-based games, it's a live queueing simulation (M/G/1-style): guests arrive, rides serve them from the queue, and gold is earned per guest served rather than per completion. "What" axis picks the ride (carousel / coaster / waterslide); throughput scales with the "how" upgrades. (Has an open hydration bug — see #10.)
@@ -25,15 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Amusement Park: NaN queue counter / inert game** (#10, partial). `hydrateState` now runs saved state through `clampState`, healing a non-finite `queueLength` (a corrupt `null` save) back to a sane value, and `tick` re-clamps so one bad value can't propagate. (Residual: `totalServed`/`abandoned` aren't yet clamped — tracked on #10.)
 - **Async plugin hydration + crash containment** (#11) — `hydrateState` is awaited so state can't become a `Promise`, and a plugin that throws is contained rather than blanking its window.
 - **Real Content-Security-Policy** (#2). `security.csp` is no longer `null`: a strict production policy (`script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, `plugin:` only for `img`/`media`/`frame`) plus a Vite-friendly `security.devCsp`. Closes the open XSS→IPC surface ADR 0001/0002 flagged.
-
-### Planned
-
-Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https://github.com/obrien-k/waiting-game/issues):
-
-- Dynamic `AppData/plugins` loader (remaining half of #3) — scan bundles and register them via `parseManifest`; the sandbox, broker, and `plugin://` protocol are already in place.
-- `steam` Cargo feature, optional `steamworks` dependency, and `src-tauri/src/steam/` skeleton.
-- `tauri-plugin-single-instance` for Steam relaunch / overlay.
-- Asset-location convention (`src/assets/` vs `src-tauri/resources/`).
 
 ## [0.2.3] - 2026-06-27
 
@@ -91,7 +94,8 @@ Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https:
 
 - Initial implementation: Tauri v2 hub window with pop-out floating game windows, the `water-boil` reference mini-game, the `MiniGamePlugin` system, 250 ms `setInterval` ticker, cross-window broadcast/event channels, and the AppData save/load system with offline-progress calculation.
 
-[Unreleased]: https://github.com/obrien-k/waiting-game/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/obrien-k/waiting-game/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/obrien-k/waiting-game/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/obrien-k/waiting-game/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/obrien-k/waiting-game/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/obrien-k/waiting-game/compare/v0.2.0...v0.2.1
