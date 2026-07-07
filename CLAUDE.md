@@ -8,6 +8,23 @@ Stack: React + TypeScript + Tailwind (v4, `@theme` block in `globals.css`) + Tau
 
 ---
 
+## Nomenclature (ADR 0003)
+
+One justified alignment — don't drift from it:
+
+| Term | Meaning | Audience |
+|---|---|---|
+| **The Waiting Game** | the product; article always kept | everyone |
+| **Wait** | one mini-game, in player-facing copy ("choose a Wait", "this Wait is popped out") | players |
+| **plugin** | the code artifact behind a Wait | devs / workshop authors |
+| **Pop out** | the verb for launching a Wait into its floating window | players |
+| Garden / Menagerie / Cabinet / Trophy Shelf | collection shelves for `flora` / `fauna` / `relic` / `trophy`; hidden until non-empty | players |
+| **artifact** | code/API term for a collectible; never player-facing | devs |
+
+Titles follow the **"Waiting …"** frame: Waiting for Water to Boil, Waiting for Paint to Dry, Waiting for a Plant to Grow, Waiting in Line. New games (and the `_template` placeholder) must fit the frame. The boredom idioms live in card *descriptions*, idiom-led with a mechanical wink. Plugin IDs (`water-boil`, …) are frozen — they key saves, unlock costs, and artifact namespaces.
+
+---
+
 ## Architecture
 
 ### Window model
@@ -112,16 +129,17 @@ The `[DEV] Fast Boil` game is only registered in development. The pattern:
 ```ts
 // gameRegistry.ts
 const BUILTIN_PLUGINS = [
-  waterBoilPlugin,
-  ...(import.meta.env.DEV ? [devInstantPlugin, devPaintPlugin, devPlantPlugin] : []),
+  waterBoilPlugin, paintDryPlugin, plantGrowPlugin, amusementParkPlugin,
+  ...(import.meta.env.DEV
+    ? [devInstantPlugin, devPaintPlugin, devPlantPlugin, devSandboxPlugin]
+    : []),
 ];
 
-// hubStore.ts
 // hubStore.ts — DEFAULT_INSTALLED_GAME_IDS; hydrate() unions this with saved
 // installs so newly-shipped games always appear.
-installedGameIds: import.meta.env.DEV
-  ? ["water-boil", "paint-dry", "plant-grow", "dev-instant", "dev-paint", "dev-plant"]
-  : ["water-boil", "paint-dry", "plant-grow"],
+const DEFAULT_INSTALLED_GAME_IDS = import.meta.env.DEV
+  ? [...prodIds, "dev-instant", "dev-paint", "dev-plant", "dev-sandbox"]
+  : ["water-boil", "paint-dry", "plant-grow", "amusement-park"];
 ```
 
 Both files must be updated together — the registry controls routing, the hub store controls which cards appear.

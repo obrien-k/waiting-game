@@ -28,7 +28,7 @@ export function GameCard({ gameId, onFocus }: Props) {
   if (!plugin) {
     return (
       <div className="h-48 rounded-xl bg-white/5 flex items-center justify-center text-white/20">
-        Unknown game: {gameId}
+        Unknown Wait: {gameId}
       </div>
     );
   }
@@ -79,7 +79,7 @@ export function GameCard({ gameId, onFocus }: Props) {
         onClick={() => !isOpen && onFocus(gameId)}
         disabled={isOpen}
         className="flex-1 flex items-center justify-center p-4 w-full hover:bg-white/5 disabled:cursor-default transition-colors"
-        title={isOpen ? "Game is open in a pop-out window" : "Focus game"}
+        title={isOpen ? "This Wait is open in a pop-out window" : "Watch on the big screen"}
       >
         {Thumbnail && liveState ? (
           <Thumbnail state={liveState} />

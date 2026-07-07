@@ -18,8 +18,8 @@ import { emitGoldEarned, emitCrystalEarned, emitOfflineMessage } from "@/engine/
 import { formatGold } from "@/engine/currency";
 
 const templatePlugin: MiniGamePlugin = {
-  id: "my-game",           // ← change this (must match gameRegistry + hubStore)
-  name: "My Waiting Game", // ← change this
+  id: "my-game",                    // ← change this (must match gameRegistry + hubStore)
+  name: "Waiting for ___ to ___",   // ← change this; titles follow the "Waiting …" frame (ADR 0003)
   description: "Something worth waiting for",
   version: "1.0.0",
   variants: VARIANTS,

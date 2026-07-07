@@ -1,4 +1,5 @@
 import type { MiniGamePlugin } from "@/engine/types";
+import { assertPlugin } from "@/engine/pluginValidation";
 import {
   getInitialState,
   hydrateState,
@@ -16,7 +17,7 @@ import { formatGold } from "@/engine/currency";
 const waterBoilPlugin: MiniGamePlugin = {
   id: "water-boil",
   name: "Waiting for Water to Boil",
-  description: "Physics-accurate kettle",
+  description: "A watched pot never boils. (It does — physics insists.)",
   version: "1.0.0",
 
   getInitialState,
@@ -53,5 +54,7 @@ const waterBoilPlugin: MiniGamePlugin = {
   CardThumbnail,
   upgrades: WATER_BOIL_UPGRADES,
 };
+
+assertPlugin(waterBoilPlugin);
 
 export default waterBoilPlugin;

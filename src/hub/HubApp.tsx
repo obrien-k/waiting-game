@@ -20,7 +20,7 @@ export function HubApp() {
   const resetAllProgress = useHubStore((s) => s.resetAllProgress);
 
   async function handleResetAllProgress() {
-    if (!window.confirm("Reset all progress? This wipes gold, crystals, unlocks, and every game's save file.")) return;
+    if (!window.confirm("Reset all progress? This wipes gold, crystals, unlocks, and every Wait's save file.")) return;
     await resetAllProgress();
     window.location.reload();
   }
@@ -59,9 +59,9 @@ export function HubApp() {
               <button
                 onClick={() => setFocusedGameId(null)}
                 className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-sm"
-                title="Back to all games"
+                title="Back to all Waits"
               >
-                ← All games
+                ← All Waits
               </button>
               <span className="text-white/20">·</span>
               <span className="text-sm font-medium text-white/80">{focusedPlugin.name}</span>
@@ -125,7 +125,7 @@ export function HubApp() {
 
       {!isBigScreen && (
         <footer className="px-6 py-2 text-xs text-white/20 border-t border-white/10">
-          The Waiting Game v0.3.0
+          The Waiting Game v{__APP_VERSION__}
         </footer>
       )}
     </div>

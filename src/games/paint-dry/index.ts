@@ -17,8 +17,8 @@ import { formatGold } from "@/engine/currency";
 
 const paintDryPlugin: MiniGamePlugin = {
   id: "paint-dry",
-  name: "Watching Paint Dry",
-  description: "Four finishes, four kinds of patience",
+  name: "Waiting for Paint to Dry",
+  description: "Like watching paint dry — four finishes, four kinds of patience.",
   version: "1.0.0",
   variants: VARIANTS,
 

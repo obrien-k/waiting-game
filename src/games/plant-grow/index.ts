@@ -33,8 +33,8 @@ const ARTIFACT_CATALOG: ArtifactCatalogEntry[] = VARIANTS.map((v) => ({
 
 const plantGrowPlugin: MiniGamePlugin = {
   id: "plant-grow",
-  name: "Watching a Plant Grow",
-  description: "From ryegrass to a two-day oak",
+  name: "Waiting for a Plant to Grow",
+  description: "Like watching grass grow — from ryegrass to a two-day oak.",
   version: "1.0.0",
   variants: VARIANTS,
 
