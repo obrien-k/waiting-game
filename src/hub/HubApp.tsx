@@ -7,7 +7,7 @@ import { InlineGameShell } from "@/game-window/InlineGameShell";
 import { IframeGameShell } from "@/game-window/IframeGameShell";
 import { isExternalPlugin } from "@/engine/pluginTrust";
 import { GameGrid } from "./GameGrid";
-import { Garden } from "./Garden";
+import { CollectionShelves } from "./CollectionShelves";
 import { GoldDisplay } from "@/components/GoldDisplay";
 import { CrystalDisplay } from "@/components/CrystalDisplay";
 
@@ -117,7 +117,7 @@ export function HubApp() {
           )
         ) : (
           <div className="p-6">
-            <Garden />
+            <CollectionShelves />
             <GameGrid onFocus={setFocusedGameId} />
           </div>
         )}

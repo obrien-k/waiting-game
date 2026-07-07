@@ -35,27 +35,44 @@ export const getInitialState = (): AmusementParkState => ({
 // or a future compounding upgrade blowing these up (e.g. paretoScale → ~0
 // sends serviceRate → ∞; the pre-fix purchase bug that let repeatable
 // upgrades be bought unboundedly hit exactly this).
+//
+// Non-finite values heal to the fresh-state default rather than a bound:
+// a pre-fix save serialized NaN as null (issue #10), and Math.min/max would
+// only propagate it.
+function clampField(x: unknown, lo: number, hi: number, fallback: number): number {
+  const n = typeof x === "number" && Number.isFinite(x) ? x : fallback;
+  return Math.min(Math.max(n, lo), hi);
+}
+
+const DEFAULTS = getInitialState();
+
 function clampState(state: AmusementParkState): AmusementParkState {
   return {
     ...state,
-    arrivalRate: Math.min(Math.max(state.arrivalRate, 0), 10),
-    paretoScale: Math.min(Math.max(state.paretoScale, 0.5), 50),
-    paretoAlpha: Math.min(Math.max(state.paretoAlpha, 2.01), 10),
-    queueLength: Math.min(Math.max(state.queueLength, 0), 1_000_000),
-    heatIndex: Math.min(Math.max(state.heatIndex, 0), 1),
-    goldPerGuest: Math.min(Math.max(state.goldPerGuest, 0), 1000),
+    arrivalRate: clampField(state.arrivalRate, 0, 10, DEFAULTS.arrivalRate),
+    paretoScale: clampField(state.paretoScale, 0.5, 50, DEFAULTS.paretoScale),
+    paretoAlpha: clampField(state.paretoAlpha, 2.01, 10, DEFAULTS.paretoAlpha),
+    queueLength: clampField(state.queueLength, 0, 1_000_000, DEFAULTS.queueLength),
+    heatIndex: clampField(state.heatIndex, 0, 1, DEFAULTS.heatIndex),
+    goldPerGuest: clampField(state.goldPerGuest, 0, 1000, DEFAULTS.goldPerGuest),
+    totalServed: clampField(state.totalServed, 0, Number.MAX_SAFE_INTEGER, 0),
+    abandoned: clampField(state.abandoned, 0, Number.MAX_SAFE_INTEGER, 0),
   };
 }
 
 export const hydrateState = async (raw: unknown): Promise<AmusementParkState> => {
-  const state = raw as Partial<AmusementParkState>;
+  const state = (raw ?? {}) as Partial<AmusementParkState>;
   const hydrated: AmusementParkState = clampState({
     ...getInitialState(),
     ...state,
+    ownedUpgradeIds: Array.isArray(state.ownedUpgradeIds)
+      ? state.ownedUpgradeIds.filter((id): id is string => typeof id === "string")
+      : [],
   });
 
   const now = Date.now();
-  const elapsedSeconds = (now - hydrated.lastSaveAt) / 1000.0;
+  const lastSaveAt = clampField(state.lastSaveAt, 0, now, now);
+  const elapsedSeconds = (now - lastSaveAt) / 1000.0;
 
   // Only calculate if significant time has passed (> 5 seconds)
   if (elapsedSeconds > 5.0) {
@@ -72,14 +89,20 @@ export const hydrateState = async (raw: unknown): Promise<AmusementParkState> =>
         paretoScale: hydrated.paretoScale,
         paretoAlpha: hydrated.paretoAlpha,
         heatIndex: hydrated.heatIndex,
-        currentQueue: hydrated.queueLength,
+        // Active ticks make queueLength fractional; the Rust param is u32 and
+        // serde rejects a float, which silently skipped offline progress.
+        currentQueue: Math.floor(hydrated.queueLength),
         goldPerGuest: hydrated.goldPerGuest,
       });
 
-      hydrated.totalServed += offlineResult.guestsServed;
-      hydrated.abandoned += offlineResult.guestsAbandoned;
-      hydrated.queueLength = offlineResult.newQueueLength;
-      hydrated.pendingOfflineGold = offlineResult.goldEarned;
+      // The Rust side owns the math, but never let a bad payload re-corrupt
+      // a save we just healed.
+      hydrated.totalServed += Math.max(0, offlineResult.guestsServed || 0);
+      hydrated.abandoned += Math.max(0, offlineResult.guestsAbandoned || 0);
+      hydrated.queueLength = clampField(
+        offlineResult.newQueueLength, 0, 1_000_000, hydrated.queueLength
+      );
+      hydrated.pendingOfflineGold = Math.max(0, offlineResult.goldEarned || 0);
     } catch (e) {
       console.error("Failed to calculate offline progress:", e);
     }
