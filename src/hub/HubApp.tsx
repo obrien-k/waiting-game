@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useHubStore, startGoldListener } from "@/store/hubStore";
-import { useGameRegistry, type GameRegistryState } from "@/store/gameRegistry";
+import { useGameRegistry, UNLOCK_COSTS, type GameRegistryState } from "@/store/gameRegistry";
 import { onOfflineMessage, onWindowClosed } from "@/engine/eventBus";
 import { listOpenGameIds } from "@/engine/windowManager";
 import { InlineGameShell } from "@/game-window/InlineGameShell";
@@ -19,10 +19,17 @@ export function HubApp() {
   const setWindowOpen = useHubStore((s) => s.setWindowOpen);
   const resetAllProgress = useHubStore((s) => s.resetAllProgress);
   const installedGameIds = useHubStore((s) => s.installedGameIds);
+  const unlockedGameIds = useHubStore((s) => s.unlockedGameIds);
   const unlockGame = useHubStore((s) => s.unlockGame);
 
+  // Only games that are actually locked: unlockGame discards any pre-unlock
+  // save (the clock starts at unlock), so calling it on an already-playable
+  // game would wipe real progress.
   async function handleUnlockAll() {
-    for (const id of installedGameIds) await unlockGame(id, 0);
+    for (const id of installedGameIds) {
+      const cost = UNLOCK_COSTS[id] ?? 0;
+      if (cost > 0 && !unlockedGameIds.has(id)) await unlockGame(id, 0);
+    }
   }
 
   async function handleResetAllProgress() {

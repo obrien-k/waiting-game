@@ -110,6 +110,25 @@ describe("amusement-park hydration recovery", () => {
     expect(hydrated.pendingOfflineGold).toBe(100);
   });
 
+  it("caps the simulated offline window at 8 hours (a week-old save must not pay a week of queue)", async () => {
+    invokeMock.mockResolvedValue({
+      guestsServed: 0,
+      guestsAbandoned: 0,
+      goldEarned: 0,
+      newQueueLength: 5,
+      timeSimulatedSeconds: 0,
+    });
+    const saved: Partial<AmusementParkState> = {
+      ...getInitialState(),
+      lastSaveAt: Date.now() - 8 * 24 * 60 * 60 * 1000, // 8 days
+    };
+
+    await hydrateState(saved);
+
+    const args = invokeMock.mock.calls[0][1] as { elapsedSeconds: number };
+    expect(args.elapsedSeconds).toBeLessThanOrEqual(8 * 60 * 60);
+  });
+
   it("does not re-corrupt a healed save from a bad offline payload", async () => {
     invokeMock.mockResolvedValue({
       guestsServed: NaN,

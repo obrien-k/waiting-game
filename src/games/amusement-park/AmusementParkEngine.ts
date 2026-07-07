@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { UpgradeDef } from "@/engine/types";
+import { OFFLINE_SIM_CAP_MS } from "@/engine/pluginValidation";
 
 export interface AmusementParkState {
   queueLength: number;
@@ -72,7 +73,7 @@ export const hydrateState = async (raw: unknown): Promise<AmusementParkState> =>
 
   const now = Date.now();
   const lastSaveAt = clampField(state.lastSaveAt, 0, now, now);
-  const elapsedSeconds = (now - lastSaveAt) / 1000.0;
+  const elapsedSeconds = Math.min(now - lastSaveAt, OFFLINE_SIM_CAP_MS) / 1000.0;
 
   // Only calculate if significant time has passed (> 5 seconds)
   if (elapsedSeconds > 5.0) {

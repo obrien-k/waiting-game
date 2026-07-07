@@ -1,4 +1,5 @@
 import type { UpgradeDef, GameVariant } from "@/engine/types";
+import { OFFLINE_SIM_CAP_MS } from "@/engine/pluginValidation";
 
 // ─── Variants ("what" axis) ──────────────────────────────────────────────────
 // Each species grows at its own base rate. The "what" tree switches between
@@ -147,7 +148,7 @@ export function calculateOfflineProgress(
   /** Bare artifact id → count minted while away (hoard model, aggregated). */
   offlineArtifacts: Record<string, number>;
 } {
-  const offlineMs = Math.min(nowMs - state.lastSaveAt, 8 * 60 * 60 * 1000);
+  const offlineMs = Math.min(nowMs - state.lastSaveAt, OFFLINE_SIM_CAP_MS);
   if (offlineMs <= 0)
     return { state, offlineGoldEarned: 0, offlineCrystalsEarned: 0, offlineArtifacts: {} };
 

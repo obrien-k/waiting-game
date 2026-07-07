@@ -45,7 +45,7 @@ interface HubState {
   resetAllProgress: () => Promise<void>;
 }
 
-export const useHubStore = create<HubState>((set) => {
+export const useHubStore = create<HubState>((set, get) => {
   return {
     gold: createLedger(),
     crystals: { count: 0 },
@@ -82,9 +82,14 @@ export const useHubStore = create<HubState>((set) => {
     },
 
     async unlockGame(gameId, cost) {
+      const wasUnlocked = get().unlockedGameIds.has(gameId);
       try {
         const nextState = await invoke<HubStateData>("unlock_game", { gameId, cost });
         set({ gold: nextState.gold, unlockedGameIds: new Set(nextState.unlockedGameIds ?? []) });
+        // A Wait's clock starts at unlock. Any save that predates the unlock is
+        // stale (the player couldn't have played a locked game) and would pay
+        // out phantom offline progress on first open — discard it.
+        if (!wasUnlocked) await deleteSave(gameId);
         return true;
       } catch {
         return false;

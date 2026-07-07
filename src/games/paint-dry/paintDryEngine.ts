@@ -1,4 +1,5 @@
 import type { UpgradeDef, GameVariant } from "@/engine/types";
+import { OFFLINE_SIM_CAP_MS } from "@/engine/pluginValidation";
 
 // ─── Real evaporation physics ────────────────────────────────────────────────
 // A wet coat dries as its solvent (water, for these paints) evaporates. We model
@@ -203,7 +204,7 @@ export function calculateOfflineProgress(
   state: PaintDryState,
   nowMs: number
 ): { state: PaintDryState; offlineGoldEarned: number; offlineCrystalsEarned: number } {
-  const offlineMs = Math.min(nowMs - state.lastSaveAt, 8 * 60 * 60 * 1000);
+  const offlineMs = Math.min(nowMs - state.lastSaveAt, OFFLINE_SIM_CAP_MS);
   if (offlineMs <= 0) return { state, offlineGoldEarned: 0, offlineCrystalsEarned: 0 };
 
   let current = state;
