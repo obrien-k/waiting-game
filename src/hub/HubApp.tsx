@@ -18,6 +18,12 @@ export function HubApp() {
   const setOfflineMessage = useHubStore((s) => s.setOfflineMessage);
   const setWindowOpen = useHubStore((s) => s.setWindowOpen);
   const resetAllProgress = useHubStore((s) => s.resetAllProgress);
+  const installedGameIds = useHubStore((s) => s.installedGameIds);
+  const unlockGame = useHubStore((s) => s.unlockGame);
+
+  async function handleUnlockAll() {
+    for (const id of installedGameIds) await unlockGame(id, 0);
+  }
 
   async function handleResetAllProgress() {
     if (!window.confirm("Reset all progress? This wipes gold, crystals, unlocks, and every Wait's save file.")) return;
@@ -77,13 +83,22 @@ export function HubApp() {
         </div>
         <div className="flex items-center gap-2">
           {import.meta.env.DEV && (
-            <button
-              onClick={handleResetAllProgress}
-              title="Dev only: wipe gold, crystals, unlocks, and all save files"
-              className="px-2 py-1 rounded text-xs border border-red-500/30 text-red-300/70 hover:text-red-200 hover:border-red-500/60 transition-colors"
-            >
-              Reset Progress
-            </button>
+            <>
+              <button
+                onClick={handleUnlockAll}
+                title="Dev only: unlock every installed Wait at no cost"
+                className="px-2 py-1 rounded text-xs border border-fuchsia-500/30 text-fuchsia-300/70 hover:text-fuchsia-200 hover:border-fuchsia-500/60 transition-colors"
+              >
+                Unlock All
+              </button>
+              <button
+                onClick={handleResetAllProgress}
+                title="Dev only: wipe gold, crystals, unlocks, and all save files"
+                className="px-2 py-1 rounded text-xs border border-red-500/30 text-red-300/70 hover:text-red-200 hover:border-red-500/60 transition-colors"
+              >
+                Reset Progress
+              </button>
+            </>
           )}
           <CrystalDisplay />
           <GoldDisplay />

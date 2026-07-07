@@ -9,6 +9,7 @@ import { PLUGIN_LIMITS } from "@/engine/pluginValidation";
 import { GameTicker } from "@/engine/ticker";
 import { canPurchaseUpgrade, purchaseUpgrade, getOwnedInstances, getUpgradeCost, getUpgradeLevel } from "@/engine/upgradeSystem";
 import { GameErrorBoundary } from "./GameErrorBoundary";
+import { DevCheatPanel } from "@/components/DevCheatPanel";
 
 interface Props {
   plugin: MiniGamePlugin;
@@ -227,6 +228,17 @@ export function GameWindowShell({ plugin }: Props) {
           </div>
         )}
       </div>
+
+      {import.meta.env.DEV && loaded && (
+        <DevCheatPanel
+          plugin={plugin}
+          getState={() => stateRef.current}
+          applyState={(next) => {
+            stateRef.current = next;
+            setState(next);
+          }}
+        />
+      )}
     </div>
   );
 }
