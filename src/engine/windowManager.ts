@@ -36,17 +36,6 @@ export async function openGameWindow(
   });
 }
 
-export async function closeGameWindow(gameId: string) {
-  const label = `game-${gameId}`;
-  const win = await WebviewWindow.getByLabel(label);
-  if (win) await win.close();
-}
-
-export async function isGameWindowOpen(gameId: string): Promise<boolean> {
-  const win = await WebviewWindow.getByLabel(`game-${gameId}`);
-  return win !== null;
-}
-
 /**
  * Game ids that currently have a live pop-out window. Used by the hub to
  * reconcile `openWindowIds` on startup — that set is in-memory only, so after a

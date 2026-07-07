@@ -98,10 +98,10 @@ export function GameCard({ gameId, onFocus }: Props) {
         <button
           onClick={handlePopOut}
           disabled={isOpen}
-          title={isOpen ? "Already open" : "Pop out to desktop"}
+          title={isOpen ? "Already open on your desktop" : "Pop out to desktop"}
           className="ml-2 shrink-0 px-2 py-1 rounded text-xs border border-white/20 text-white/60 hover:text-white hover:border-white/40 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
-          {isOpen ? "Open" : "⎋ Pop out"}
+          {isOpen ? "Popped out" : "⎋ Pop out"}
         </button>
       </div>
     </div>
