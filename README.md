@@ -4,7 +4,7 @@ Idle mini-games for your desktop, each one a small act of patience: pop a **Wait
 
 > ### 🎮 Just here to play?
 > You don't need anything on this page. Grab the game from:
-> - **[itch.io → The Waiting Game](https://obrien-k.itch.io/the-waiting-game)**
+> - **[itch.io → The Waiting Game](https://korinb.itch.io/waiting-game)**
 > - **[GitHub Releases](https://github.com/obrien-k/waiting-game/releases)** (macOS / Windows / Linux installers)
 >
 > Everything below is for developers building the game or writing plugins for it.
