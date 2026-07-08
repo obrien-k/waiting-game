@@ -1,6 +1,6 @@
 import { formatGold } from "@/engine/currency";
 import { useHubStore } from "@/store/hubStore";
-import { canPurchaseUpgrade, getUpgradeCost } from "@/engine/upgradeSystem";
+import { canPurchaseUpgrade, getUpgradeCost, isUpgradeOwned } from "@/engine/upgradeSystem";
 import type { UpgradeDef, UpgradeInstance } from "@/engine/types";
 
 interface Props {
@@ -48,6 +48,12 @@ export function UpgradePanel({
             const isOwned = level >= def.maxLevel;
             const affordable = canPurchaseUpgrade(upgrades, owned, def.id, goldBalance);
             const nextCost = getUpgradeCost(def, level);
+            // A locked prerequisite reads differently from "can't afford yet" —
+            // hard modes are gated on purpose and the gate must be visible.
+            const missingPrereq = def.requires?.find((id) => !isUpgradeOwned(owned, id));
+            const prereqLabel = missingPrereq
+              ? upgrades.find((u) => u.id === missingPrereq)?.label ?? missingPrereq
+              : null;
 
             // Grouped upgrades are radio-selectable once owned: one is active, the
             // rest are owned-but-inactive and can be re-selected for free.
@@ -82,8 +88,18 @@ export function UpgradePanel({
                 `}
               >
                 <div>
-                  <div className="font-medium">{def.label}</div>
-                  <div className="text-xs opacity-60">{def.description}</div>
+                  <div className="font-medium">
+                    {def.label}
+                    {def.maxLevel > 1 && level > 0 && (
+                      <span className="ml-1.5 font-mono text-xs text-white/40">
+                        Lv {level}/{def.maxLevel}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs opacity-60">
+                    {prereqLabel && !isOwned ? `Requires ${prereqLabel} · ` : ""}
+                    {def.description}
+                  </div>
                 </div>
                 <div className="ml-3 shrink-0 text-xs font-mono">
                   {isActive ? (
@@ -92,6 +108,8 @@ export function UpgradePanel({
                     <span className="text-white/60">Select</span>
                   ) : isOwned ? (
                     <span className="text-green-400">✓ Owned</span>
+                  ) : prereqLabel ? (
+                    <span className="text-white/30">🔒</span>
                   ) : (
                     <span className={affordable ? "text-[var(--color-gold)]" : "text-white/30"}>
                       ◈ {formatGold(nextCost)}

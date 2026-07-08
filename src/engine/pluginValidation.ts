@@ -19,6 +19,14 @@ export const PLUGIN_LIMITS = {
   goldPerTickMax: 500,
 } as const;
 
+/**
+ * Ceiling on the offline window every engine may simulate on hydrate. Every
+ * game must apply this in its offline-progress path — amusement-park missed it
+ * as a per-engine convention and paid out days of uncapped queue traffic in
+ * one banner.
+ */
+export const OFFLINE_SIM_CAP_MS = 8 * 60 * 60 * 1000;
+
 type ValidationResult = { ok: true } | { ok: false; errors: string[] };
 
 export function validatePlugin(plugin: MiniGamePlugin): ValidationResult {

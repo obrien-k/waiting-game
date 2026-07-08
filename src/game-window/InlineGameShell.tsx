@@ -6,6 +6,7 @@ import { broadcastTick, emitGoldEarned, emitCrystalEarned, emitArtifactEarned } 
 import { PLUGIN_LIMITS } from "@/engine/pluginValidation";
 import { GameTicker } from "@/engine/ticker";
 import { canPurchaseUpgrade, purchaseUpgrade, getOwnedInstances, getUpgradeCost, getUpgradeLevel } from "@/engine/upgradeSystem";
+import { DevCheatPanel } from "@/components/DevCheatPanel";
 
 interface Props {
   plugin: MiniGamePlugin;
@@ -117,5 +118,21 @@ export function InlineGameShell({ plugin }: Props) {
     );
   }
 
-  return <plugin.Component {...componentProps} />;
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-auto">
+        <plugin.Component {...componentProps} />
+      </div>
+      {import.meta.env.DEV && (
+        <DevCheatPanel
+          plugin={plugin}
+          getState={() => stateRef.current}
+          applyState={(next) => {
+            stateRef.current = next;
+            setState(next);
+          }}
+        />
+      )}
+    </div>
+  );
 }

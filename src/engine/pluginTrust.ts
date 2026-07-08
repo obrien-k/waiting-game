@@ -1,28 +1,16 @@
 /**
  * Two-tier plugin trust model (ADR 0002).
  *
- * Tier 1 (trusted): renders as a native React component with full `game-window`
- * capability inheritance (filesystem, direct Tauri IPC). Reserved for built-ins
- * and staff-vetted community games.
+ * Tier 1 (trusted): native React with full `game-window` capabilities.
+ * Built-ins and staff-vetted games only.
+ * Tier 2 (untrusted): sandboxed `<iframe sandbox="allow-scripts">`, zero native
+ * capabilities; privileged actions go through the postMessage broker
+ * (`iframeBroker.ts`).
  *
- * Tier 2 (untrusted): renders inside a sandboxed `<iframe sandbox="allow-scripts">`
- * with zero native capabilities. All privileged actions go through the
- * `postMessage` broker (see `iframeBroker.ts`), which validates and clamps every
- * request before acting on the iframe's behalf.
- *
- * TRUST-TIER ASSIGNMENT MECHANISM
- * ------------------------------
- * Today: a hardcoded allowlist (`TRUSTED_PLUGIN_IDS`). Only plugins compiled into
- * the binary — the built-ins — can be Tier 1, and only if their id is on the
- * allowlist. Anything loaded dynamically at runtime is external and defaults to
- * Tier 2. There is no code path by which an externally-sourced plugin becomes
- * Tier 1: `resolveTrustTier` keys off the discriminated `kind`, and an external
- * descriptor has no native React component to promote.
- *
- * Future (tracked, not implemented here): replace the allowlist with a signature
- * check — a staff-held key signs a vetted bundle's manifest, and a valid
- * signature (plus allowlisted id) promotes an external bundle to Tier 1. The
- * `resolveTrustTier` seam is where that check will slot in; callers do not change.
+ * Tier assignment is a hardcoded allowlist (`TRUSTED_PLUGIN_IDS`). Anything
+ * loaded at runtime is external and always Tier 2 — an external descriptor has
+ * no native component to promote. A future signature check (staff-signed
+ * manifests) slots into the `resolveTrustTier` seam without changing callers.
  */
 
 import type { MiniGamePlugin } from "./types";
@@ -30,9 +18,8 @@ import type { MiniGamePlugin } from "./types";
 export type TrustTier = "trusted" | "untrusted";
 
 /**
- * Broker permissions a Tier-2 plugin may request in its manifest. The broker
- * rejects any brokered action whose backing permission is not granted here, so
- * an undeclared capability is a hard denial rather than a silent allow.
+ * Broker permissions a Tier-2 plugin may request in its manifest. An undeclared
+ * capability is a hard denial at the broker, never a silent allow.
  */
 export interface BrokerPermissions {
   /** May call the gold API (`earn-gold`) through the broker. */
@@ -84,10 +71,7 @@ export function isExternalPlugin(p: RegisteredPlugin): p is ExternalPlugin {
   return (p as ExternalPlugin).kind === "external";
 }
 
-/**
- * Allowlist of plugin ids permitted to run as Tier 1 (native). These are the
- * built-ins; membership is the sole gate for native execution today.
- */
+/** Sole gate for Tier-1 (native) execution today. */
 export const TRUSTED_PLUGIN_IDS: ReadonlySet<string> = new Set([
   "water-boil",
   "paint-dry",
@@ -100,10 +84,8 @@ export const TRUSTED_PLUGIN_IDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Resolve the trust tier for a registry entry. External plugins are always
- * untrusted. Native plugins are trusted only if allowlisted; a native plugin
- * whose id is not on the allowlist is treated as untrusted (defense in depth —
- * an unexpected native id should not inherit capabilities).
+ * External plugins are always untrusted; native plugins only trusted if
+ * allowlisted — an unexpected native id must not inherit capabilities.
  */
 export function resolveTrustTier(plugin: RegisteredPlugin): TrustTier {
   if (isExternalPlugin(plugin)) return "untrusted";

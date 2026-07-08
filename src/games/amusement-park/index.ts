@@ -1,4 +1,5 @@
 import type { MiniGamePlugin } from "@/engine/types";
+import { assertPlugin } from "@/engine/pluginValidation";
 import {
   getInitialState,
   hydrateState,
@@ -14,8 +15,8 @@ import { formatGold } from "@/engine/currency";
 
 const amusementParkPlugin: MiniGamePlugin = {
   id: "amusement-park",
-  name: "Amusement Park Queue",
-  description: "Stochastic M/G/1 queue — manage rides, heat, and crowds",
+  name: "Waiting in Line",
+  description: "The other line always moves faster. Manage rides, heat, and crowds.",
   version: "1.0.0",
 
   getInitialState,
@@ -51,5 +52,7 @@ const amusementParkPlugin: MiniGamePlugin = {
   CardThumbnail,
   upgrades: AMUSEMENT_PARK_UPGRADES,
 };
+
+assertPlugin(amusementParkPlugin);
 
 export default amusementParkPlugin;

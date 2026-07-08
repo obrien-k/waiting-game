@@ -33,8 +33,8 @@ const ARTIFACT_CATALOG: ArtifactCatalogEntry[] = VARIANTS.map((v) => ({
 
 const plantGrowPlugin: MiniGamePlugin = {
   id: "plant-grow",
-  name: "Watching a Plant Grow",
-  description: "From ryegrass to a two-day oak",
+  name: "Waiting for a Plant to Grow",
+  description: "Like watching grass grow — from ryegrass to a two-day oak.",
   version: "1.0.0",
   variants: VARIANTS,
 
@@ -56,8 +56,17 @@ const plantGrowPlugin: MiniGamePlugin = {
           emitArtifactEarned("plant-grow", `plant-grow:${bareId}`, count);
         }
         const crystalNote = offlineCrystalsEarned > 0 ? ` +${offlineCrystalsEarned} 💎` : "";
+        // Disclose what was grown — a ×240 in the Garden with no explanation
+        // reads as a bug, not eight hours of auto-replanted ryegrass.
+        const grownNote = offlineArtifactEntries
+          .map(([bareId, count]) => {
+            const v = VARIANTS.find((v) => v.id === bareId);
+            return `+${count} ${v?.emoji ?? bareId}`;
+          })
+          .join(" ");
         emitOfflineMessage(
-          `Your garden grew ◈ ${formatGold(offlineGoldEarned)} while you were away!${crystalNote}`
+          `Your garden grew ◈ ${formatGold(offlineGoldEarned)} while you were away!` +
+            (grownNote ? ` (${grownNote})` : "") + crystalNote
         );
       });
     }

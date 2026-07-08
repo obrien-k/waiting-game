@@ -14,11 +14,13 @@ export function GameGrid({ onFocus }: Props) {
         <GameCard key={id} gameId={id} onFocus={onFocus} />
       ))}
 
-      {/* Install placeholder */}
-      <button className="h-48 rounded-xl border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-2 text-white/30 hover:text-white/50 hover:border-white/40 transition-all">
-        <span className="text-3xl">+</span>
-        <span className="text-sm">Install Game</span>
-      </button>
+      {/* Honest placeholder — becomes the install entry point when the
+          workshop loader ships. Not a button until it can act. */}
+      <div className="h-48 rounded-xl border-2 border-dashed border-white/15 flex flex-col items-center justify-center gap-2 text-white/25 select-none">
+        <span className="text-3xl">⏳</span>
+        <span className="text-sm">More Waits on the way</span>
+        <span className="text-xs text-white/15">Workshop support is planned</span>
+      </div>
     </div>
   );
 }

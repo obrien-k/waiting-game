@@ -34,19 +34,14 @@ pub fn calculate_amusement_park_offline(
 ) -> AmusementParkOfflineResult {
     let mut rng = rand::rng();
 
-    // 1. ARRIVALS (Poisson Process)
-    // The number of arrivals in time `t` for a Poisson process with rate `lambda`
-    // is simply a Poisson random variable with mean = lambda * t.
+    // 1. ARRIVALS: Poisson process — arrivals in time t ~ Poisson(lambda * t).
     let expected_arrivals = arrival_rate * elapsed_seconds;
-    
-    // statrs Poisson requires mean > 0.
+
+    // Poisson::new requires mean > 0. Above 1000 expected arrivals switch to the
+    // Normal approximation (mean = var = lambda*t) to avoid f64 -> u64 overflow
+    // on very long offline windows.
     let total_arrivals = if expected_arrivals > 0.0 {
-        // statrs Poisson doesn't natively implement the rand Distribution trait in older versions,
-        // but we can sample it using inverse transform sampling or just use its mean for massive numbers 
-        // to prevent f64 -> u64 casting overflow on massive offline times.
-        // For game stability over massive times, if arrivals > 1000, we approximate with Normal.
         if expected_arrivals > 1000.0 {
-            // Normal approx: mean = lambda*t, variance = lambda*t
             use rand_distr::{Normal, Distribution};
             let normal = Normal::new(expected_arrivals, expected_arrivals.sqrt()).unwrap();
             let sample = normal.sample(&mut rng).round();
@@ -60,26 +55,21 @@ pub fn calculate_amusement_park_offline(
         0
     };
 
-    // 2. SERVICE (Renewal Process Approximation)
-    // For a Pareto distribution:
-    // Mean E[S] = (alpha * scale) / (alpha - 1)
-    // Variance Var[S] = (scale^2 * alpha) / ((alpha - 1)^2 * (alpha - 2))
-    let alpha = if pareto_alpha <= 2.0 { 2.01 } else { pareto_alpha }; // Enforce finite variance
+    // 2. SERVICE: renewal-process approximation. Pareto service times:
+    // E[S] = alpha*scale / (alpha-1); Var[S] = scale^2*alpha / ((alpha-1)^2 (alpha-2)).
+    let alpha = if pareto_alpha <= 2.0 { 2.01 } else { pareto_alpha }; // enforce finite variance
     let expected_service_time = (alpha * pareto_scale) / (alpha - 1.0);
     let service_variance = (pareto_scale.powi(2) * alpha) / ((alpha - 1.0).powi(2) * (alpha - 2.0));
-    
+
     let service_rate = 1.0 / expected_service_time; // mu
-    
-    // By the Central Limit Theorem for renewal processes, the number of renewals (served guests) 
-    // in time t is asymptotically Normal with:
-    // Mean = t / E[S]
-    // Variance = (t * Var[S]) / E[S]^3
+
+    // CLT for renewal processes: renewals in t are asymptotically Normal with
+    // mean t/E[S] and variance t*Var[S]/E[S]^3.
     let expected_served = elapsed_seconds * service_rate;
     let served_variance = (elapsed_seconds * service_variance) / expected_service_time.powi(3);
-    
+
     let capacity_served = if expected_served > 100.0 {
         use rand_distr::{Normal, Distribution};
-        // Ensure standard deviation is positive and valid
         let std_dev = if served_variance > 0.0 { served_variance.sqrt() } else { 1.0 };
         let normal = Normal::new(expected_served, std_dev).unwrap_or(Normal::new(expected_served, 1.0).unwrap());
         let sample = normal.sample(&mut rng).round();
@@ -88,26 +78,22 @@ pub fn calculate_amusement_park_offline(
         expected_served.round() as u32
     };
 
-    // We can only serve as many people as we have in the queue + new arrivals.
-    // (Assuming a uniform arrival rate, which is a simplification for a fluid queue).
+    // Served is capped by queue + arrivals (fluid-queue simplification: arrivals
+    // treated as uniform over the window).
     let max_possible_guests = current_queue + total_arrivals;
     let actual_served = cmp::min(max_possible_guests, capacity_served);
 
-    // 3. ABANDONMENT (Heat Index Friction)
-    // People abandon the queue if they wait too long. We model this as a decay factor.
-    // Abandonment rate gamma = heat_index * 0.001 (e.g. 100 heat = 10% of queue leaves per hour).
-    // The number of remaining guests drops exponentially: N(t) = N(0) * e^(-gamma * t)
-    // We apply this to the guests who were NOT served.
+    // 3. ABANDONMENT: unserved guests decay exponentially, N(t) = N(0)*e^(-gamma*t),
+    // with gamma scaled by the heat index.
     let remaining_before_abandon = max_possible_guests.saturating_sub(actual_served);
-    
-    let base_abandonment_rate = 0.0001; // Base friction
+
+    let base_abandonment_rate = 0.0001;
     let gamma = base_abandonment_rate * (1.0 + heat_index);
-    let retention_ratio = (-gamma * elapsed_seconds).exp(); // e^(-gamma * t)
-    
+    let retention_ratio = (-gamma * elapsed_seconds).exp();
+
     let expected_retained = (remaining_before_abandon as f64 * retention_ratio).round() as u32;
     let actual_abandoned = remaining_before_abandon.saturating_sub(expected_retained);
 
-    // 4. FINAL STATE
     let new_queue_length = expected_retained;
     let gold_earned = actual_served as f64 * gold_per_guest;
 

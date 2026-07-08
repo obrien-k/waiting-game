@@ -1,32 +1,32 @@
 # The Waiting Game
 
-A collection of idle mini-games for your desktop. Keep them floating on top of your other apps while you work, or play them full-screen in the hub.
+Idle mini-games for your desktop, each one a small act of patience: pop a **Wait** out of the hub into its own floating window, let it run on top of your other apps, and come back to find it finished. The simulations underneath are real — thermodynamics, evaporation physics, queueing theory — so the waiting is honest.
+
+> ### 🎮 Just here to play?
+> You don't need anything on this page. Grab the game from:
+> - **[itch.io → The Waiting Game](https://korinb.itch.io/waiting-game)**
+> - **[GitHub Releases](https://github.com/obrien-k/waiting-game/releases)** (macOS / Windows / Linux installers)
+>
+> Everything below is for developers building the game or writing plugins for it.
 
 Built with [Tauri v2](https://tauri.app), [React 18](https://react.dev), [TypeScript](https://www.typescriptlang.org), and [Tailwind CSS v4](https://tailwindcss.com).
 
 ---
 
-## Games
+## The Waits
 
-### Waiting for Water to Boil
+| Wait | The idiom | The model underneath |
+|---|---|---|
+| **Waiting for Water to Boil** | a watched pot never boils | Real thermodynamics: `Q = m·c·ΔT`, pots and heaters in litres and watts. Gold per boil scales with volume², so bigger pots improve your *rate*, not just the payout. |
+| **Waiting for Paint to Dry** | like watching paint dry | An evaporation model — saturation vapour pressure, convective mass transfer, film thickness. Upgrades set *real conditions* (airflow, humidity, heat), not multipliers. |
+| **Waiting for a Plant to Grow** | like watching grass grow | Species from ryegrass to a two-day oak. Grown plants join your **Garden**, a collection shelf in the hub. |
+| **Waiting in Line** | the other line always moves faster | A stochastic M/G/1 queue (Poisson arrivals, Pareto service times) simulated in Rust — manage rides, heat, and crowds. |
 
-Physics-accurate kettle simulation. Water heats according to **Q = m × c × ΔT** (c = 4,182 J/kg·°C). Buy bigger pots and stronger heat sources to boil faster and earn more gold.
-
-| Upgrade | Cost | Effect |
-|---------|------|--------|
-| Small Pot | free | 0.5 L |
-| Medium Pot | 50 ◈ | 1.0 L |
-| Large Pot | 200 ◈ | 2.0 L |
-| Candle | free | 50 W |
-| Gas Stove | 100 ◈ | 3,500 W |
-| Electric Hob | 500 ◈ | 1,000 W |
-| Induction Cooktop | 2,000 ◈ | 3,000 W |
-
-Gold earned per boil = pot volume in litres × 10.
+Shared systems: **Gold ◈** buys upgrades along two axes per game (*what* you're waiting for, *how* fast it goes). **Crystals 💎** are a prestige currency — exactly one per hard-mode completion, and hard modes are fixed real-time grinds (the two-day oak takes two days, no matter what you own). Collections (Garden, Menagerie, Cabinet, Trophy Shelf) reveal themselves in the hub as you fill them. Progress continues while the app is closed — every game computes offline progress on load.
 
 ---
 
-## Installing
+## Development
 
 ### Prerequisites
 
@@ -36,244 +36,105 @@ Gold earned per boil = pot volume in litres × 10.
 | Rust | stable | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
 | Tauri CLI | v2 | installed automatically via `npm install` |
 
-On macOS you'll also need Xcode Command Line Tools:
+On macOS you'll also need Xcode Command Line Tools: `xcode-select --install`.
 
-```
-xcode-select --install
-```
-
-### Setup
+### Run it
 
 ```bash
-git clone https://github.com/yourname/waiting-game.git
+git clone https://github.com/obrien-k/waiting-game.git
 cd waiting-game
 npm install
+npm run tauri dev     # Vite dev server + the app, with HMR
 ```
 
-### Development
+### Test it
 
 ```bash
-npm run tauri dev
+npm test                          # vitest (engines, broker, shells)
+cd src-tauri && cargo test        # Rust (queue math, plugin protocol scoping)
 ```
 
-This starts the Vite dev server and opens the app. Hot-module replacement is active — changes to React components appear instantly without restarting Tauri.
+Dev builds add tooling that never ships in production:
 
-### Testing gameplay without waiting
+- **🧪 Cheat panel** (bottom of every game window and big-screen view): grant gold/crystals, mint artifacts, **time-warp** (rewinds the save's timestamps and re-runs the real `hydrateState`, so you're testing the production offline-progress path), and a raw state-JSON editor.
+- **Unlock All** / **Reset Progress** buttons in the hub header.
+- `[DEV]` fixture games (expedited variants of each Wait, plus a sandboxed Tier-2 demo).
 
-In dev mode a **`[DEV] Fast Boil`** card appears in the hub. It uses a 50,000 W heater so the pot reaches 100 °C in roughly 3 seconds. Use it to exercise the full loop end-to-end:
-
-1. Click **⎋ Pop out** on the Dev Fast Boil card
-2. Watch the temperature bar rise, hear the gold ding, click **Refill & Restart**
-3. Verify the hub card's live preview updates and gold accumulates
-
-This game is gated behind `import.meta.env.DEV` and is completely excluded from production builds.
-
-### Production build
+### Build it
 
 ```bash
-npm run tauri build
+npm run tauri build   # packaged app in src-tauri/target/release/bundle/
 ```
 
-The packaged app appears in `src-tauri/target/release/bundle/`.
-
-> **macOS note:** If `cargo` is not on your PATH, run `. ~/.cargo/env` first or add `~/.cargo/bin` to your shell profile.
+> **macOS note:** if `cargo` is not on your PATH, run `. ~/.cargo/env` first.
 
 ---
 
-## Creating a Mini-Game
+## Writing a Wait (plugin authoring)
 
-Every game is a plugin implementing the `MiniGamePlugin` interface. Adding one requires changes to two registry files plus the game folder itself — there is no runtime loader yet (planned for v0.2).
+Copy **`src/games/_template/`** and follow its [README](src/games/_template/README.md) — it walks through the whole thing. The short version:
 
-### 1. The plugin interface
-
-Your game must export a default object conforming to:
+1. **Engine file** — pure functions, no React: `getInitialState`, `hydrateState` (must call `calculateOfflineProgress`), `tick`, upgrade definitions.
+2. **Component file** — React, receives `PluginComponentProps`.
+3. **`index.ts`** — assembles the `MiniGamePlugin`:
 
 ```ts
 interface MiniGamePlugin {
-  readonly id: string;          // unique, kebab-case, e.g. "my-game"
-  readonly name: string;        // display name shown in the hub
-  readonly description: string;
-  readonly version: string;     // semver
-
-  // Return the initial state for a new game (no save file)
-  getInitialState(): unknown;
-
-  // Receive raw JSON from a save file, return a valid state
-  // Use this to add defaults for fields added in newer versions
-  hydrateState(raw: unknown): unknown;
-
-  // Pure function: given state + elapsed ms, return next state + gold earned
-  // Must NOT mutate state. Called up to 60 times per second.
-  tick(state: unknown, deltaMs: number): { next: unknown; goldEarned: number };
-
-  // The full-screen React component rendered inside the pop-out window
-  Component: React.ComponentType<PluginComponentProps>;
-
-  // Optional: compact preview shown on the hub grid card
-  CardThumbnail?: React.ComponentType<{ state: unknown }>;
-
-  // Upgrade definitions (empty array if none)
-  upgrades: UpgradeDef[];
-
-  // Optional: reset to a fresh round while preserving upgrades
-  reset?: (state: unknown) => unknown;
-}
-```
-
-`PluginComponentProps` passed to your component:
-
-```ts
-interface PluginComponentProps {
-  state: unknown;                           // current game state
-  onUpgradePurchase: (id: string) => void; // call to buy an upgrade
-  onReset?: () => void;                    // call to reset the round
-  isPopOut: boolean;                       // true when in its own window
-}
-```
-
-### 2. Upgrade definitions
-
-Each upgrade is a pure function that transforms state:
-
-```ts
-interface UpgradeDef {
-  id: string;          // unique within your game
-  label: string;
+  id: string;            // frozen forever — keys saves, unlocks, artifacts
+  name: string;          // follows the "Waiting …" title frame (ADR 0003)
   description: string;
-  cost: number;        // gold cost
-  maxLevel: number;    // 1 for one-shot upgrades, higher for stackable
-  requires?: string[]; // IDs of prerequisite upgrades
-  apply: (state: unknown, level: number) => unknown;
+  version: string;
+  getInitialState(): unknown;
+  hydrateState(raw: unknown): unknown | Promise<unknown>;
+  tick(state: unknown, deltaMs: number): TickResult;   // { next, goldEarned, crystalsEarned, artifactId? }
+  Component: React.ComponentType<PluginComponentProps>;
+  CardThumbnail?: React.ComponentType<{ state: unknown }>;
+  upgrades: UpgradeDef[];
+  variants?: GameVariant[];                 // the "what" axis; hard modes award 1 💎
+  artifactCatalog?: ArtifactCatalogEntry[]; // collectibles for the hub shelves
+  reset?(state: unknown): unknown;
 }
 ```
 
-The engine handles affordability checks, prerequisite validation, and gold deduction. Your `apply` function just returns the updated state.
+4. **Register in two files**: add the plugin to `BUILTIN_PLUGINS` in `src/store/gameRegistry.ts` and its id to `DEFAULT_INSTALLED_GAME_IDS` in `src/store/hubStore.ts`.
 
-### 3. State conventions
+Rules the engine enforces (`assertPlugin` at load): JSON-serializable state, `ownedUpgradeIds: string[]` on state, tick caps from `src/engine/pluginValidation.ts`, hard-mode variants ≥ 2 days. The tick loop is `setInterval` at 250 ms (not rAF — it must keep ticking in unfocused windows).
 
-Your state must be JSON-serializable (it gets saved to disk). Track which upgrades are owned via an `ownedUpgradeIds: string[]` field — the shell uses this array to apply upgrades when purchases happen:
+### Third-party / workshop plugins
 
-```ts
-interface MyGameState {
-  // your fields
-  score: number;
-  multiplier: number;
-
-  // required by the engine's upgrade system
-  ownedUpgradeIds: string[];
-  lastSaveAt: number; // Date.now() — used for offline progress
-}
-```
-
-### 4. Register the game
-
-**`src/store/gameRegistry.ts`** — add to the plugin list:
-```ts
-import myPlugin from "@/games/my-game";
-const BUILTIN_PLUGINS = [waterBoilPlugin, myPlugin];
-```
-
-**`src/store/hubStore.ts`** — add the ID so a card appears in the hub:
-```ts
-installedGameIds: ["water-boil", "my-game"],
-```
-
-For dev-only games (testing, experiments) wrap both additions in `import.meta.env.DEV ? [...] : []` / a conditional — see `src/games/dev-instant/` for the pattern.
-
-### 5. Minimal example
-
-```ts
-// my-game/index.ts
-import type { MiniGamePlugin } from "@/engine/types"; // or copy the types
-
-interface State {
-  count: number;
-  perSecond: number;
-  ownedUpgradeIds: string[];
-  lastSaveAt: number;
-}
-
-const MyGame: MiniGamePlugin = {
-  id: "my-game",
-  name: "My Idle Game",
-  description: "Numbers go up",
-  version: "1.0.0",
-
-  getInitialState(): State {
-    return { count: 0, perSecond: 1, ownedUpgradeIds: [], lastSaveAt: Date.now() };
-  },
-
-  hydrateState(raw): State {
-    const s = raw as Partial<State>;
-    return {
-      count: s.count ?? 0,
-      perSecond: s.perSecond ?? 1,
-      ownedUpgradeIds: s.ownedUpgradeIds ?? [],
-      lastSaveAt: s.lastSaveAt ?? Date.now(),
-    };
-  },
-
-  tick(state, deltaMs) {
-    const s = state as State;
-    const gained = (s.perSecond * deltaMs) / 1000;
-    return {
-      next: { ...s, count: s.count + gained },
-      goldEarned: gained * 0.01, // earn gold proportional to count rate
-    };
-  },
-
-  upgrades: [
-    {
-      id: "double-speed",
-      label: "Double Speed",
-      description: "2× per-second rate",
-      cost: 100,
-      maxLevel: 5,
-      apply: (state, level) => ({
-        ...(state as State),
-        perSecond: Math.pow(2, level),
-      }),
-    },
-  ],
-
-  Component: ({ state, onUpgradePurchase }) => {
-    const s = state as State;
-    return (
-      <div style={{ padding: 24, color: "white" }}>
-        <h2>{s.count.toFixed(0)} things</h2>
-        <p>{s.perSecond}/s</p>
-        <button onClick={() => onUpgradePurchase("double-speed")}>
-          Double Speed (100 ◈)
-        </button>
-      </div>
-    );
-  },
-};
-
-export default MyGame;
-```
+Dynamically loaded plugins are **Tier 2**: they run in a sandboxed iframe with no filesystem and no Tauri access, talking to the host only through a permission-gated postMessage broker; assets are served by a strictly-scoped `plugin://` protocol. The manifest format (`src/games/_template/manifest.json`) is stable. See [ADR 0002](docs/adr/0002-two-tier-plugin-sandbox.md) for the full trust model.
 
 ---
 
-## Project structure
+## Architecture
+
+Two window types share one codebase — `main.tsx` checks the Tauri window label at startup:
+
+| Window | Renders | Source |
+|---|---|---|
+| `main` (hub) | game grid, live card previews, collection shelves, big-screen view | `src/hub/` |
+| `game-<id>` (pop-outs) | one Wait in a frameless always-on-top window | `src/game-window/` |
+
+Cross-window traffic: `BroadcastChannel` for high-frequency tick previews and gold display sync; Tauri events for crediting (gold/crystals/artifacts) and lifecycle. Gold and crystal ledgers live in Rust (`src-tauri/src/state.rs`) — the single writer across all windows. Saves go to `AppData` (`saves/<gameId>.json` + `hub.json`), auto-saved every 30 s and on window close.
 
 ```
 waiting-game/
 ├── src/
-│   ├── engine/          # Core engine: ticker, save/load, events, upgrades, currency
-│   ├── store/           # Zustand stores: hub (gold, game list), game registry
-│   ├── hub/             # Main hub window: game grid, cards, header
-│   ├── game-window/     # Pop-out window shell: title bar, always-on-top toggle
-│   ├── games/
-│   │   ├── water-boil/  # "Waiting for Water to Boil" (reference implementation)
-│   │   └── dev-instant/ # [DEV] Fast Boil — dev-only test game (excluded from prod)
-│   └── components/      # Shared UI: TemperatureGauge, ProgressBar, UpgradePanel
-└── src-tauri/
-    ├── capabilities/
-    │   ├── main-window.json   # Tauri permissions for the hub window
-    │   └── game-window.json   # Tauri permissions for game pop-outs (label: "game-*")
-    └── src/             # Rust entry point (minimal — no custom commands yet)
+│   ├── engine/          # ticker, save/load, event bus, upgrades, validation,
+│   │                    # manifest parsing, iframe broker, trust tiers
+│   ├── store/           # zustand stores: hub state, game registry
+│   ├── hub/             # hub window: grid, cards, collection shelves
+│   ├── game-window/     # shells: native pop-out, inline big-screen, Tier-2 iframe
+│   ├── games/           # one folder per Wait + _template + [DEV] fixtures
+│   └── components/      # shared UI (UpgradePanel, displays, dev cheat panel)
+├── src-tauri/
+│   ├── capabilities/    # per-window-type Tauri permissions
+│   └── src/             # gold/crystal/artifact ledgers, queue simulation,
+│                        # plugin:// asset protocol
+└── docs/adr/            # architecture decision records
 ```
+
+More depth: [CLAUDE.md](CLAUDE.md) (working notes and gotchas), [docs/adr/](docs/adr/) (decisions), [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

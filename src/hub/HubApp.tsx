@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useHubStore, startGoldListener } from "@/store/hubStore";
-import { useGameRegistry, type GameRegistryState } from "@/store/gameRegistry";
+import { useGameRegistry, UNLOCK_COSTS, type GameRegistryState } from "@/store/gameRegistry";
 import { onOfflineMessage, onWindowClosed } from "@/engine/eventBus";
 import { listOpenGameIds } from "@/engine/windowManager";
 import { InlineGameShell } from "@/game-window/InlineGameShell";
 import { IframeGameShell } from "@/game-window/IframeGameShell";
 import { isExternalPlugin } from "@/engine/pluginTrust";
 import { GameGrid } from "./GameGrid";
-import { Garden } from "./Garden";
+import { CollectionShelves } from "./CollectionShelves";
 import { GoldDisplay } from "@/components/GoldDisplay";
 import { CrystalDisplay } from "@/components/CrystalDisplay";
 
@@ -18,9 +18,22 @@ export function HubApp() {
   const setOfflineMessage = useHubStore((s) => s.setOfflineMessage);
   const setWindowOpen = useHubStore((s) => s.setWindowOpen);
   const resetAllProgress = useHubStore((s) => s.resetAllProgress);
+  const installedGameIds = useHubStore((s) => s.installedGameIds);
+  const unlockedGameIds = useHubStore((s) => s.unlockedGameIds);
+  const unlockGame = useHubStore((s) => s.unlockGame);
+
+  // Only games that are actually locked: unlockGame discards any pre-unlock
+  // save (the clock starts at unlock), so calling it on an already-playable
+  // game would wipe real progress.
+  async function handleUnlockAll() {
+    for (const id of installedGameIds) {
+      const cost = UNLOCK_COSTS[id] ?? 0;
+      if (cost > 0 && !unlockedGameIds.has(id)) await unlockGame(id, 0);
+    }
+  }
 
   async function handleResetAllProgress() {
-    if (!window.confirm("Reset all progress? This wipes gold, crystals, unlocks, and every game's save file.")) return;
+    if (!window.confirm("Reset all progress? This wipes gold, crystals, unlocks, and every Wait's save file.")) return;
     await resetAllProgress();
     window.location.reload();
   }
@@ -59,9 +72,9 @@ export function HubApp() {
               <button
                 onClick={() => setFocusedGameId(null)}
                 className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-sm"
-                title="Back to all games"
+                title="Back to all Waits"
               >
-                ← All games
+                ← All Waits
               </button>
               <span className="text-white/20">·</span>
               <span className="text-sm font-medium text-white/80">{focusedPlugin.name}</span>
@@ -77,13 +90,22 @@ export function HubApp() {
         </div>
         <div className="flex items-center gap-2">
           {import.meta.env.DEV && (
-            <button
-              onClick={handleResetAllProgress}
-              title="Dev only: wipe gold, crystals, unlocks, and all save files"
-              className="px-2 py-1 rounded text-xs border border-red-500/30 text-red-300/70 hover:text-red-200 hover:border-red-500/60 transition-colors"
-            >
-              Reset Progress
-            </button>
+            <>
+              <button
+                onClick={handleUnlockAll}
+                title="Dev only: unlock every installed Wait at no cost"
+                className="px-2 py-1 rounded text-xs border border-fuchsia-500/30 text-fuchsia-300/70 hover:text-fuchsia-200 hover:border-fuchsia-500/60 transition-colors"
+              >
+                Unlock All
+              </button>
+              <button
+                onClick={handleResetAllProgress}
+                title="Dev only: wipe gold, crystals, unlocks, and all save files"
+                className="px-2 py-1 rounded text-xs border border-red-500/30 text-red-300/70 hover:text-red-200 hover:border-red-500/60 transition-colors"
+              >
+                Reset Progress
+              </button>
+            </>
           )}
           <CrystalDisplay />
           <GoldDisplay />
@@ -117,7 +139,7 @@ export function HubApp() {
           )
         ) : (
           <div className="p-6">
-            <Garden />
+            <CollectionShelves />
             <GameGrid onFocus={setFocusedGameId} />
           </div>
         )}
@@ -125,7 +147,7 @@ export function HubApp() {
 
       {!isBigScreen && (
         <footer className="px-6 py-2 text-xs text-white/20 border-t border-white/10">
-          The Waiting Game v0.3.0
+          The Waiting Game v{__APP_VERSION__}
         </footer>
       )}
     </div>
