@@ -19,10 +19,13 @@ export interface Lane {
   goldPerShopper: number;
 }
 
+// Tuned to be stingy — this Wait is about the waiting. Regular lane ≈ 120
+// gold/hr, on par with a sunflower; self-checkout tops out ≈ 180/hr. One
+// shopper a minute, half-minute checkouts.
 export const LANES: Record<LaneId, Lane> = {
-  regular: { arrivalRate: 0.1,  paretoScale: 6.0, paretoAlpha: 3.0, goldPerShopper: 10 },
-  express: { arrivalRate: 0.25, paretoScale: 1.5, paretoAlpha: 4.0, goldPerShopper: 6 },
-  self:    { arrivalRate: 0.4,  paretoScale: 1.0, paretoAlpha: 2.2, goldPerShopper: 5 },
+  regular: { arrivalRate: 1 / 60, paretoScale: 20, paretoAlpha: 3.0, goldPerShopper: 2 },   // E[S] 30s, ρ 0.50
+  express: { arrivalRate: 1 / 30, paretoScale: 6,  paretoAlpha: 4.0, goldPerShopper: 1.2 }, // E[S] 8s,  ρ 0.27
+  self:    { arrivalRate: 1 / 20, paretoScale: 4,  paretoAlpha: 2.2, goldPerShopper: 1 },   // E[S] 7.3s, ρ 0.37, fat tail
 };
 
 const BAGGER_SPEEDUP = 0.85;  // service time × per level
@@ -208,7 +211,7 @@ export const GROCERY_LINE_UPGRADES: UpgradeDef[] = [
     id: "lane-express",
     label: "Express Lane",
     description: "10 items or less. More shoppers, smaller baskets.",
-    cost: 2000,
+    cost: 1500,
     maxLevel: 1,
     group: "what",
     groupLabel: "Lane",
@@ -219,7 +222,7 @@ export const GROCERY_LINE_UPGRADES: UpgradeDef[] = [
     id: "lane-self",
     label: "Self-Checkout",
     description: "Fastest on average. Unexpected item in bagging area.",
-    cost: 8000,
+    cost: 5000,
     maxLevel: 1,
     group: "what",
     groupLabel: "Lane",

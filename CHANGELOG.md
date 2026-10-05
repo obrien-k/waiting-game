@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Waiting in Line is now a grocery checkout** (was an amusement park). Same M/G/1 queue, less to manage: three lanes on the "what" axis (Regular / Express / Self-Checkout) and two permanent "how" upgrades (Bagger, Weekly Ad). Heat index, the Shade Canopy, and ride-themed copy are gone; the UI shows one "how busy" bar and a plain-language status line instead of ρ and rate chips. Code moved to `src/games/grocery-line/`; the plugin id stays `amusement-park` (frozen per ADR 0003). Rust command renamed `calculate_grocery_line_offline` and drops the `heat_index` param.
+- **Waiting in Line is now a grocery checkout** (was an amusement park). Same M/G/1 queue, less to manage: three lanes on the "what" axis (Regular / Express / Self-Checkout) and two permanent "how" upgrades (Bagger, Weekly Ad). Payouts cut roughly 30× (Regular ≈ 120 gold/hr, max ≈ 400/hr) — it's a Wait, not a money printer. Heat index, the Shade Canopy, and ride-themed copy are gone; the UI shows one "how busy" bar and a plain-language status line instead of ρ and rate chips. Code moved to `src/games/grocery-line/`; the plugin id stays `amusement-park` (frozen per ADR 0003). Rust command renamed `calculate_grocery_line_offline` and drops the `heat_index` param.
 
 ### Fixed
 
