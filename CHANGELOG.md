@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Waiting in Line is now a grocery checkout** (was an amusement park). Same M/G/1 queue, less to manage: three lanes on the "what" axis (Regular / Express / Self-Checkout) and two permanent "how" upgrades (Bagger, Weekly Ad). Heat index, the Shade Canopy, and ride-themed copy are gone; the UI shows one "how busy" bar and a plain-language status line instead of ρ and rate chips. Code moved to `src/games/grocery-line/`; the plugin id stays `amusement-park` (frozen per ADR 0003). Rust command renamed `calculate_grocery_line_offline` and drops the `heat_index` param.
+
+### Fixed
+
+- **Waiting in Line upgrades no longer compound.** Queue parameters are derived from the active lane + owned upgrade levels on every read instead of being stored and multiplied by `apply`, so re-selecting an upgrade can't re-apply it. The active lane now shows as ✓ Active in the upgrade panel.
+
+### Migration
+
+- Amusement-park saves keep their queue length and served/abandoned counts, but ride and ride-upgrade purchases don't carry over; everyone restarts on the Regular Lane.
+
 ### Planned
 
 Tracked as GitHub issues — see the [Steam/Workshop readiness milestone](https://github.com/obrien-k/waiting-game/issues):

@@ -39,7 +39,7 @@ vi.mock("@/store/hubStore", () => ({
 }));
 
 import { GameWindowShell } from "./GameWindowShell";
-import amusementParkPlugin from "@/games/amusement-park";
+import groceryLinePlugin from "@/games/grocery-line";
 import type { MiniGamePlugin } from "@/engine/types";
 
 // The corrupted save that the original bug wrote to disk.
@@ -56,7 +56,7 @@ beforeEach(() => {
 describe("GameWindowShell — async hydration + corrupted save", () => {
   it("awaits async hydrateState and renders the game from a corrupted save", async () => {
     loadGameMock.mockResolvedValue(CORRUPTED_SAVE);
-    const { container } = render(<GameWindowShell plugin={amusementParkPlugin as never} />);
+    const { container } = render(<GameWindowShell plugin={groceryLinePlugin as never} />);
     await waitFor(() => expect(container.textContent).not.toContain("Loading"), { timeout: 2000 });
     // Hydration backfills defaults, so no undefined-driven NaN reaches the UI.
     expect(container.textContent).not.toContain("NaN");
@@ -65,7 +65,7 @@ describe("GameWindowShell — async hydration + corrupted save", () => {
   it("contains a throwing plugin in the error boundary instead of blanking the window", async () => {
     loadGameMock.mockResolvedValue(null);
     const throwingPlugin: MiniGamePlugin = {
-      ...(amusementParkPlugin as MiniGamePlugin),
+      ...(groceryLinePlugin as MiniGamePlugin),
       Component: () => {
         throw new Error("boom");
       },

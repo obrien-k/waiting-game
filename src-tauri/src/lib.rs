@@ -1,10 +1,10 @@
 use tauri::http::{header::CONTENT_TYPE, Response};
 use tauri::Manager;
-mod amusement_park;
+mod grocery_line;
 mod plugin_protocol;
 mod state;
 use state::{add_artifact, add_crystal, add_gold, get_hub_state, hydrate_hub_state, reset_hub_state, set_installed_games, spend_gold, unlock_game, AppState};
-use amusement_park::calculate_amusement_park_offline;
+use grocery_line::calculate_grocery_line_offline;
 
 #[tauri::command]
 fn get_open_game_windows(app: tauri::AppHandle) -> Vec<String> {
@@ -50,7 +50,7 @@ pub fn run() {
             reset_hub_state,
             set_installed_games,
             hydrate_hub_state,
-            calculate_amusement_park_offline
+            calculate_grocery_line_offline
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
