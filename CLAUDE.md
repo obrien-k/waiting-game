@@ -21,7 +21,7 @@ One justified alignment — don't drift from it:
 | Garden / Menagerie / Cabinet / Trophy Shelf | collection shelves for `flora` / `fauna` / `relic` / `trophy`; hidden until non-empty | players |
 | **artifact** | code/API term for a collectible; never player-facing | devs |
 
-Titles follow the **"Waiting …"** frame: Waiting for Water to Boil, Waiting for Paint to Dry, Waiting for a Plant to Grow, Waiting in Line. New games (and the `_template` placeholder) must fit the frame. The boredom idioms live in card *descriptions*, idiom-led with a mechanical wink. Plugin IDs (`water-boil`, …) are frozen — they key saves, unlock costs, and artifact namespaces.
+Titles follow the **"Waiting …"** frame: Waiting for Water to Boil, Waiting for Paint to Dry, Waiting for a Plant to Grow, Waiting in Line. New games (and the `_template` placeholder) must fit the frame. The boredom idioms live in card *descriptions*, idiom-led with a mechanical wink. Plugin IDs (`water-boil`, …) are frozen — they key saves, unlock costs, and artifact namespaces. Waiting in Line lives in `src/games/grocery-line/` but keeps the id `amusement-park` from before its re-theme.
 
 ---
 
@@ -129,7 +129,7 @@ The `[DEV] Fast Boil` game is only registered in development. The pattern:
 ```ts
 // gameRegistry.ts
 const BUILTIN_PLUGINS = [
-  waterBoilPlugin, paintDryPlugin, plantGrowPlugin, amusementParkPlugin,
+  waterBoilPlugin, paintDryPlugin, plantGrowPlugin, groceryLinePlugin,
   ...(import.meta.env.DEV
     ? [devInstantPlugin, devPaintPlugin, devPlantPlugin, devSandboxPlugin]
     : []),

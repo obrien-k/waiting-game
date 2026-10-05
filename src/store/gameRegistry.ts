@@ -7,7 +7,7 @@ import devInstantPlugin from "@/games/dev-instant";
 import devPaintPlugin from "@/games/dev-paint";
 import devPlantPlugin from "@/games/dev-plant";
 import devSandboxPlugin from "@/games/dev-sandbox";
-import amusementParkPlugin from "@/games/amusement-park";
+import groceryLinePlugin from "@/games/grocery-line";
 
 // Native (Tier-1) built-ins plus, in dev, the Tier-2 iframe fixture. When the
 // workshop loader ships (issue #3) it will append parsed `ExternalPlugin`s here.
@@ -15,7 +15,7 @@ const BUILTIN_PLUGINS: RegisteredPlugin[] = [
   waterBoilPlugin,
   paintDryPlugin,
   plantGrowPlugin,
-  amusementParkPlugin,
+  groceryLinePlugin,
   ...(import.meta.env.DEV
     ? [devInstantPlugin, devPaintPlugin, devPlantPlugin, devSandboxPlugin]
     : []),
@@ -27,7 +27,7 @@ export const UNLOCK_COSTS: Record<string, number> = {
   "water-boil": 0,
   "plant-grow": 1000,
   "paint-dry": 5000,
-  "amusement-park": 15000,
+  "amusement-park": 15000, // Waiting in Line (grocery-line); id frozen
   "dev-instant": 0,
   "dev-paint": 0,
   "dev-plant": 0,
